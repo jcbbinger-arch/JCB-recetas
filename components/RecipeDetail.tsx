@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Recipe } from '../types';
-import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon, ConciergeBell } from 'lucide-react';
+import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon, ConciergeBell, ExternalLink } from 'lucide-react';
 import { findProductByName } from '../services/storage';
 
 interface RecipeDetailProps {
@@ -33,8 +33,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
   // Calculate allergens from ALL ingredients in ALL elaborations
   const recipeAllergens = useMemo(() => {
     const allergensSet = new Set<string>();
-    
-    // Safety check for older data structure or empty elaborations
     const elaborations = recipe.elaborations || [];
     
     elaborations.forEach(elab => {
@@ -59,8 +57,18 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
           <ArrowLeft size={20} /> Volver
         </button>
         <div className="flex gap-4">
+            {recipe.sourceUrl && (
+                <a 
+                    href={recipe.sourceUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/30 transition"
+                >
+                    <ExternalLink size={18} /> Ver Original
+                </a>
+            )}
             <button onClick={handlePrint} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-bold shadow-lg shadow-emerald-900/30 transition">
-            <Printer size={20} /> Imprimir / PDF
+                <Printer size={20} /> Imprimir / PDF
             </button>
         </div>
       </div>
@@ -100,7 +108,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
 
         <div className="grid grid-cols-12 gap-8">
           
-          {/* Left Column: Photo & Ingredients (Iterated by Elaboration) */}
+          {/* Left Column: Photo & Ingredients */}
           <div className="col-span-5 print:col-span-5 flex flex-col gap-8">
              
              {/* Photo (Square) */}
@@ -115,7 +123,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                 )}
              </div>
 
-             {/* Ingredients List (Grouped by Elaboration) */}
+             {/* Ingredients List */}
              <div>
                 <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4 flex items-center gap-2">
                    <Utensils size={18} /> Escandallo
@@ -140,9 +148,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                                 <td className="py-1.5 pl-2 text-xs text-slate-400 uppercase">{ing.unit}</td>
                             </tr>
                             ))}
-                            {elab.ingredients.length === 0 && (
-                                <tr><td colSpan={3} className="text-xs italic text-gray-400 py-2">Sin ingredientes.</td></tr>
-                            )}
                         </tbody>
                         </table>
                     </div>
@@ -150,10 +155,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
              </div>
           </div>
 
-          {/* Right Column: Instructions (Iterated), Allergens, Presentation */}
+          {/* Right Column: Instructions, Allergens, Presentation */}
           <div className="col-span-7 print:col-span-7 flex flex-col gap-6">
             
-            {/* Allergens Matrix - High Visibility */}
+            {/* Allergens Matrix */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 print:bg-white print:border-gray-300">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center flex items-center justify-center gap-2">
                  <AlertTriangle size={12} /> Declaración de Alérgenos (Global)
@@ -177,7 +182,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
               </div>
             </div>
 
-            {/* Instructions (Grouped by Elaboration) */}
+            {/* Instructions */}
             <div>
               <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4">
                 Elaboración
@@ -207,7 +212,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
               ))}
             </div>
             
-            {/* Process Photos Gallery (Global) */}
+            {/* Gallery */}
             {recipe.processPhotos && recipe.processPhotos.length > 0 && (
                <div className="mt-4 border-t border-dashed border-gray-300 pt-4">
                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><ImageIcon size={12}/> Galería General</h3>
@@ -250,7 +255,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
           </div>
           
           <div className="grid grid-cols-4 gap-4 text-sm">
-             {/* Temp */}
              <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none relative overflow-hidden">
                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Temperatura</span>
                <div className="flex items-center gap-2 font-bold text-sm text-slate-700 leading-tight">
@@ -259,7 +263,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                </div>
              </div>
              
-             {/* Time */}
              <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none">
                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Tiempo Pase</span>
                <div className="font-bold text-lg text-slate-700">
@@ -267,7 +270,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                </div>
              </div>
 
-             {/* Cutlery */}
              <div className="p-3 bg-white border border-slate-200 rounded shadow-sm col-span-2 print:shadow-none">
                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Marcaje / Cubiertos</span>
                <div className="font-medium text-slate-700 flex items-center gap-2">
@@ -276,7 +278,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                </div>
              </div>
              
-             {/* Service Type */}
              <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
                <div className="flex items-start gap-2">
                    <ConciergeBell size={18} className="text-slate-400 mt-1" />
@@ -294,7 +295,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                </div>
              </div>
 
-             {/* Yield */}
              <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Rendimiento</span>
                <div className="font-medium text-slate-700 flex items-center gap-2">

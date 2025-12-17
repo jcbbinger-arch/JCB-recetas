@@ -26,6 +26,7 @@ export interface Recipe {
   // Personalización
   author?: string;
   logo?: string; // Base64 del logo del restaurante/creador
+  sourceUrl?: string; // Enlace a vídeo o web original
 
   // Datos de Rendimiento
   yieldQuantity: number; // Cantidad resultante
@@ -59,6 +60,7 @@ export const DEFAULT_RECIPE: Omit<Recipe, 'id'> = {
   name: '',
   category: 'General',
   author: '',
+  sourceUrl: '',
   yieldQuantity: 4,
   yieldUnit: 'raciones',
   elaborations: [

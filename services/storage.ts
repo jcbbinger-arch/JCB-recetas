@@ -5,11 +5,47 @@ import { MASTER_PRODUCTS, MasterProduct } from '../data/products';
 const RECIPE_STORAGE_KEY = 'kitchen_recipes_v1';
 const PRODUCT_STORAGE_KEY = 'kitchen_products_v1';
 const PROFILE_STORAGE_KEY = 'kitchen_profile_v1';
+const CATEGORY_STORAGE_KEY = 'kitchen_categories_v1';
+
+const DEFAULT_CATEGORIES = [
+  'Entrantes', 'Primeros', 'Pescados', 'Carnes', 'Postres', 
+  'Salsas/Fondos', 'Cócteles', 'Panadería', 'Guarniciones'
+];
 
 // Helper for ID generation (Safe implementation)
 export const generateId = (): string => {
-  // Simple timestamp + random fallback that works in all contexts
   return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+};
+
+// --- CATEGORIES ---
+
+export const getCategories = (): string[] => {
+  try {
+    const data = localStorage.getItem(CATEGORY_STORAGE_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : DEFAULT_CATEGORIES;
+    } else {
+      localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(DEFAULT_CATEGORIES));
+      return DEFAULT_CATEGORIES;
+    }
+  } catch (error) {
+    return DEFAULT_CATEGORIES;
+  }
+};
+
+export const saveCategory = (category: string): void => {
+  const categories = getCategories();
+  if (!categories.includes(category)) {
+    categories.push(category);
+    categories.sort((a, b) => a.localeCompare(b));
+    localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
+  }
+};
+
+export const deleteCategory = (category: string): void => {
+  const categories = getCategories().filter(c => c !== category);
+  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
 };
 
 // --- USER PROFILE ---
@@ -44,8 +80,6 @@ export const getRecipes = (): Recipe[] => {
       rawRecipes = JSON.parse(data);
     } catch (e) {
       console.error("Corrupted recipe data found, resetting list.", e);
-      // Optional: backup corrupted data to console just in case
-      console.log("Corrupted Data Backup:", data);
       return [];
     }
 
@@ -53,18 +87,15 @@ export const getRecipes = (): Recipe[] => {
       return [];
     }
     
-    // Defensive Migration Logic
     return rawRecipes.map((r: any) => {
       if (!r || typeof r !== 'object') return null;
 
       let updatedRecipe = { ...r };
-
-      // Ensure critical fields exist
       updatedRecipe.id = updatedRecipe.id || generateId();
       updatedRecipe.name = updatedRecipe.name || 'Sin Nombre';
+      updatedRecipe.sourceUrl = updatedRecipe.sourceUrl || '';
       updatedRecipe.processPhotos = Array.isArray(updatedRecipe.processPhotos) ? updatedRecipe.processPhotos : [];
 
-      // Migrate ingredients to elaborations if needed
       if (!updatedRecipe.elaborations || !Array.isArray(updatedRecipe.elaborations) || updatedRecipe.elaborations.length === 0) {
         updatedRecipe.elaborations = [
           {
@@ -76,7 +107,6 @@ export const getRecipes = (): Recipe[] => {
           }
         ];
       } else {
-        // Sanitize existing elaborations
         updatedRecipe.elaborations = updatedRecipe.elaborations.map((e: any) => ({
             ...e,
             id: e.id || generateId(),
@@ -86,7 +116,6 @@ export const getRecipes = (): Recipe[] => {
         }));
       }
 
-      // Ensure serviceDetails exists
       updatedRecipe.serviceDetails = {
            presentation: r.serviceDetails?.presentation || '',
            servingTemp: r.serviceDetails?.servingTemp || '',
@@ -118,7 +147,7 @@ export const saveRecipe = (recipe: Recipe): void => {
     
     localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes));
   } catch (e) {
-    alert("Error al guardar: Posiblemente el almacenamiento local está lleno (imágenes grandes).");
+    alert("Error al guardar: Posiblemente el almacenamiento local está lleno.");
   }
 };
 
@@ -184,11 +213,12 @@ export const findProductByName = (name: string): MasterProduct | undefined => {
 
 export const createFullBackup = (): void => {
   const backup = {
-    version: 2, 
+    version: 3, 
     timestamp: new Date().toISOString(),
     recipes: getRecipes(),
     products: getProducts(),
-    profile: getUserProfile()
+    profile: getUserProfile(),
+    categories: getCategories()
   };
 
   const dataStr = JSON.stringify(backup, null, 2);
@@ -206,6 +236,7 @@ export const restoreFromBackup = (jsonString: string): { success: boolean; messa
 
     if (Array.isArray(data.recipes)) localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(data.recipes));
     if (Array.isArray(data.products)) localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(data.products));
+    if (Array.isArray(data.categories)) localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(data.categories));
     if (data.profile) saveUserProfile(data.profile);
 
     return { success: true, message: "Restauración completada." };
