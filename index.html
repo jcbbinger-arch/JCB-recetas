@@ -20,11 +20,11 @@
               },
               primary: {
                 50: '#eef2ff',
-                600: '#4f46e5', // Indigo
+                600: '#4f46e5',
                 700: '#4338ca',
               },
               accent: {
-                500: '#f59e0b', // Amber for heat/cooking
+                500: '#f59e0b',
               }
             }
           }
@@ -37,19 +37,6 @@
         body { -webkit-print-color-adjust: exact; }
         .no-print { display: none !important; }
         .print-break-inside-avoid { break-inside: avoid; }
-      }
-      /* Fallback error display style */
-      #global-error {
-        display: none;
-        padding: 20px;
-        background-color: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #f87171;
-        margin: 20px;
-        border-radius: 8px;
-        font-family: sans-serif;
-        z-index: 9999;
-        position: relative;
       }
       /* Loading Spinner */
       .loading-initial {
@@ -65,58 +52,27 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react/": "https://esm.sh/react@18.2.0/",
-    "react-dom": "https://esm.sh/react-dom@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "lucide-react": "https://esm.sh/lucide-react@0.263.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
   <body class="bg-slate-50 text-slate-800 antialiased">
-    
-    <div id="global-error">
-      <h2 style="font-weight: bold; margin-bottom: 10px;">Error Crítico de Carga</h2>
-      <p>La aplicación no ha podido iniciarse. Detalles:</p>
-      <pre id="global-error-msg" style="background: rgba(255,255,255,0.5); padding: 10px; overflow: auto; font-size: 12px;"></pre>
-      <button onclick="localStorage.clear(); window.location.reload();" style="margin-top: 10px; padding: 8px 16px; background: #991b1b; color: white; border: none; border-radius: 4px; cursor: pointer;">Borrar Datos y Reiniciar</button>
-    </div>
-
     <div id="root">
       <div class="loading-initial">
         <svg class="animate-spin h-10 w-10 text-emerald-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <p>Cargando KitchenManager...</p>
-        <small style="opacity: 0.5; margin-top: 10px;">Si esto tarda mucho, borra la caché.</small>
+        <p>Iniciando aplicación...</p>
       </div>
     </div>
-
-    <!-- Explicitly import the entry point -->
-    <script type="module" src="./index.tsx"></script>
-
-    <script>
-      // Global error handler for module loading failures
-      window.addEventListener('error', function(e) {
-        // If root still has the loading spinner after an error, show the error box
-        const root = document.getElementById('root');
-        const hasLoaded = root && root.querySelector('.loading-initial') === null;
-        
-        if (!hasLoaded) {
-           const errorBox = document.getElementById('global-error');
-           const errorMsg = document.getElementById('global-error-msg');
-           const loading = document.querySelector('.loading-initial');
-           
-           if (errorBox && errorMsg) {
-             errorBox.style.display = 'block';
-             errorMsg.textContent = e.message || "Error desconocido de script";
-             if (loading) loading.style.display = 'none';
-           }
-        }
-      });
-    </script>
+    <!-- Absolute path to ensure Vite finds the entry point -->
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>
