@@ -38,20 +38,51 @@
         .no-print { display: none !important; }
         .print-break-inside-avoid { break-inside: avoid; }
       }
+      /* Fallback error display style */
+      #global-error {
+        display: none;
+        padding: 20px;
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #f87171;
+        margin: 20px;
+        border-radius: 8px;
+        font-family: sans-serif;
+      }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
+    "react": "https://esm.sh/react@18.2.0",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
 </script>
 </head>
   <body class="bg-slate-50 text-slate-800 antialiased">
+    <div id="global-error">
+      <h2 style="font-weight: bold; margin-bottom: 10px;">Error Crítico de Carga</h2>
+      <p>La aplicación no ha podido iniciarse. Detalles:</p>
+      <pre id="global-error-msg" style="background: rgba(255,255,255,0.5); padding: 10px; overflow: auto;"></pre>
+      <button onclick="localStorage.clear(); window.location.reload();" style="margin-top: 10px; padding: 8px 16px; background: #991b1b; color: white; border: none; border-radius: 4px; cursor: pointer;">Borrar Datos y Reiniciar</button>
+    </div>
     <div id="root"></div>
+    <script>
+      // Global error handler for module loading failures
+      window.addEventListener('error', function(e) {
+        if (document.getElementById('root').childElementCount === 0) {
+           const errorBox = document.getElementById('global-error');
+           const errorMsg = document.getElementById('global-error-msg');
+           if (errorBox && errorMsg) {
+             errorBox.style.display = 'block';
+             errorMsg.textContent = e.message || e.toString();
+           }
+        }
+      });
+    </script>
   </body>
 </html>
