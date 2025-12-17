@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, Ingredient, DEFAULT_RECIPE, Elaboration } from '../types';
-import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera, BookOpen, Utensils } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera, BookOpen, Utensils, Thermometer, ConciergeBell, Check } from 'lucide-react';
 import { MasterProduct } from '../data/products';
 import { getProducts, saveProduct, generateId } from '../services/storage';
 
@@ -71,6 +71,29 @@ const SERVICE_TYPES_INFO = [
   }
 ];
 
+const TEMPERATURE_PRESETS = {
+  "Platos Calientes": [
+    { label: "Sopas / Cremas", value: "70°C - 80°C" },
+    { label: "Carne Poco Hecha", value: "50°C - 55°C (Corazón)" },
+    { label: "Carne Al Punto", value: "60°C - 65°C (Corazón)" },
+    { label: "Carne Muy Hecha", value: "> 70°C" },
+    { label: "Pescados", value: "55°C - 63°C" },
+    { label: "Guarniciones (Arroz/Pasta)", value: "65°C - 75°C" },
+  ],
+  "Platos Fríos": [
+    { label: "Ensaladas / Gazpachos", value: "4°C - 8°C" },
+    { label: "Pescados Crudos (Tartar/Sashimi)", value: "2°C - 5°C" },
+    { label: "Embutidos / Ibéricos", value: "18°C - 22°C (Ambiente)" },
+    { label: "Quesos Frescos", value: "4°C - 8°C" },
+    { label: "Quesos Curados", value: "16°C - 18°C" },
+  ],
+  "Postres": [
+    { label: "Postres de Nevera", value: "4°C - 6°C" },
+    { label: "Helados / Sorbetes", value: "-12°C a -15°C" },
+    { label: "Postres Calientes (Coulant)", value: "50°C - 60°C" },
+  ]
+};
+
 export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, onCancel }) => {
   const [recipe, setRecipe] = useState<Recipe>(() => {
     // 1. Create a full blank recipe structure
@@ -115,7 +138,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const [showCreateProductModal, setShowCreateProductModal] = useState(false);
-  const [showCutleryModal, setShowCutleryModal] = useState(false); // New modal state
+  const [showCutleryModal, setShowCutleryModal] = useState(false);
+  const [showTempModal, setShowTempModal] = useState(false);
+  const [showServiceModal, setShowServiceModal] = useState(false);
   
   const [pendingProductCreate, setPendingProductCreate] = useState<{elabIndex: number, ingIndex: number} | null>(null);
   const [newProductName, setNewProductName] = useState('');
@@ -155,6 +180,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
         [field]: value
       }
     }));
+  };
+
+  const appendTemperature = (tempString: string) => {
+     const current = recipe.serviceDetails.servingTemp;
+     const separator = current ? " + " : "";
+     handleServiceDetailChange('servingTemp', current + separator + tempString);
   };
 
   // --- ELABORATION MANAGEMENT ---
@@ -757,13 +788,23 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-1">Temp. Servicio</label>
-                  <input
-                    type="text"
-                    value={recipe.serviceDetails.servingTemp}
-                    onChange={(e) => handleServiceDetailChange('servingTemp', e.target.value)}
-                    className="block w-full rounded-lg border-slate-600 bg-slate-700 text-white p-3"
-                    placeholder="Ej: 65ºC"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={recipe.serviceDetails.servingTemp}
+                        onChange={(e) => handleServiceDetailChange('servingTemp', e.target.value)}
+                        className="block w-full rounded-lg border-slate-600 bg-slate-700 text-white p-3"
+                        placeholder="Ej: 65ºC"
+                    />
+                    <button 
+                        type="button" 
+                        onClick={() => setShowTempModal(true)}
+                        className="bg-orange-600 hover:bg-orange-500 text-white p-3 rounded-lg shadow-lg flex items-center justify-center transition"
+                        title="Asistente de Temperaturas"
+                    >
+                         <Thermometer size={20} />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-400 mb-1">Tiempo de Pase</label>
@@ -800,22 +841,23 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                  
                  <div>
                    <label className="block text-sm font-bold text-slate-400 mb-1">Tipo Servicio</label>
-                   <div className="bg-slate-700 rounded-lg p-2 border border-slate-600">
-                     <select
-                       value={recipe.serviceDetails.serviceType}
-                       onChange={(e) => handleServiceDetailChange('serviceType', e.target.value)}
-                       className="block w-full bg-transparent text-white p-1 outline-none text-sm font-bold"
-                     >
-                       {SERVICE_TYPES_INFO.map(type => (
-                         <option key={type.id} value={type.label}>{type.label}</option>
-                       ))}
-                     </select>
-                     {/* Description Box */}
-                     <div className="mt-2 pt-2 border-t border-slate-600 text-xs text-slate-300 italic">
-                        <span className="font-bold text-emerald-400 block mb-1">Acción del Camarero:</span>
-                        {selectedServiceInfo.desc}
+                   {/* Custom Service Type Selector */}
+                   <button 
+                     type="button"
+                     onClick={() => setShowServiceModal(true)}
+                     className="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl p-4 text-left transition group relative overflow-hidden"
+                   >
+                     <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-emerald-400 text-lg flex items-center gap-2">
+                           <ConciergeBell size={20}/>
+                           {recipe.serviceDetails.serviceType}
+                        </span>
+                        <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-600 group-hover:bg-slate-700 transition">Cambiar</span>
                      </div>
-                   </div>
+                     <p className="text-xs text-slate-300 italic">
+                        {selectedServiceInfo.desc}
+                     </p>
+                   </button>
                  </div>
              </div>
            </div>
@@ -868,6 +910,109 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
             
             <div className="p-4 border-t bg-white shrink-0 text-center">
                <button onClick={() => setShowCutleryModal(false)} className="text-slate-500 text-sm hover:underline">Cancelar</button>
+            </div>
+         </div>
+      </div>
+    )}
+
+    {/* TEMPERATURE ASSISTANT MODAL */}
+    {showTempModal && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="bg-slate-900 text-white p-6 flex justify-between items-center shrink-0">
+               <div className="flex items-center gap-3">
+                  <div className="bg-orange-500 p-2 rounded-lg text-white">
+                     <Thermometer size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Temperaturas de Pase</h3>
+                    <p className="text-xs text-slate-400">Selecciona una o varias para combinar</p>
+                  </div>
+               </div>
+               <button onClick={() => setShowTempModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto bg-slate-50 flex-grow">
+               <div className="space-y-6">
+                  {Object.entries(TEMPERATURE_PRESETS).map(([category, items]) => (
+                     <div key={category} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <h4 className={`px-4 py-2 font-bold text-sm border-b ${category.includes('Calientes') ? 'bg-orange-50 text-orange-800 border-orange-100' : category.includes('Fríos') ? 'bg-blue-50 text-blue-800 border-blue-100' : 'bg-purple-50 text-purple-800 border-purple-100'}`}>{category}</h4>
+                        <div className="divide-y divide-slate-100">
+                           {items.map((item, idx) => (
+                              <button 
+                                key={idx}
+                                type="button"
+                                onClick={() => appendTemperature(`${item.label} (${item.value})`)}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex justify-between items-center group"
+                              >
+                                 <span className="font-medium text-sm text-slate-800">{item.label}</span>
+                                 <div className="flex items-center gap-2">
+                                     <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{item.value}</span>
+                                     <Plus size={14} className="text-emerald-500 opacity-0 group-hover:opacity-100 transition" />
+                                 </div>
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+            
+            <div className="p-4 border-t bg-white shrink-0 flex justify-between items-center">
+               <div className="text-xs text-slate-400 italic">
+                  Haz clic para añadir. Se pueden combinar varias.
+               </div>
+               <button onClick={() => setShowTempModal(false)} className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700">Listo</button>
+            </div>
+         </div>
+      </div>
+    )}
+
+    {/* SERVICE TYPE MODAL */}
+    {showServiceModal && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="bg-slate-900 text-white p-6 flex justify-between items-center shrink-0">
+               <div className="flex items-center gap-3">
+                  <div className="bg-indigo-500 p-2 rounded-lg text-white">
+                     <ConciergeBell size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Tipo de Servicio</h3>
+                    <p className="text-xs text-slate-400">Protocolo de Sala</p>
+                  </div>
+               </div>
+               <button onClick={() => setShowServiceModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto bg-slate-50 flex-grow">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {SERVICE_TYPES_INFO.map((type) => {
+                     const isSelected = recipe.serviceDetails.serviceType === type.label;
+                     return (
+                        <button 
+                           key={type.id}
+                           onClick={() => {
+                               handleServiceDetailChange('serviceType', type.label);
+                               setShowServiceModal(false);
+                           }}
+                           className={`relative text-left p-5 rounded-xl border-2 transition-all hover:scale-[1.02] ${isSelected ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500 shadow-md' : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md'}`}
+                        >
+                           {isSelected && (
+                               <div className="absolute top-3 right-3 text-emerald-600">
+                                   <Check size={20} strokeWidth={3} />
+                               </div>
+                           )}
+                           <h4 className={`font-bold text-lg mb-2 ${isSelected ? 'text-emerald-800' : 'text-slate-800'}`}>{type.label}</h4>
+                           <p className="text-sm text-slate-500 leading-relaxed">{type.desc}</p>
+                        </button>
+                     )
+                  })}
+               </div>
+            </div>
+            
+            <div className="p-4 border-t bg-white shrink-0 text-center">
+               <button onClick={() => setShowServiceModal(false)} className="text-slate-500 text-sm hover:underline">Cancelar</button>
             </div>
          </div>
       </div>

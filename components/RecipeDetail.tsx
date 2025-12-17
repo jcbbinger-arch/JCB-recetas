@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Recipe } from '../types';
-import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon } from 'lucide-react';
+import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon, ConciergeBell } from 'lucide-react';
 import { findProductByName } from '../services/storage';
 
 interface RecipeDetailProps {
@@ -251,10 +251,10 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
           
           <div className="grid grid-cols-4 gap-4 text-sm">
              {/* Temp */}
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none">
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none relative overflow-hidden">
                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Temperatura</span>
-               <div className="flex items-center gap-2 font-bold text-lg text-slate-700">
-                 <Thermometer size={18} className="text-emerald-500" />
+               <div className="flex items-center gap-2 font-bold text-sm text-slate-700 leading-tight">
+                 <Thermometer size={16} className="text-emerald-500 flex-shrink-0" />
                  {recipe.serviceDetails.servingTemp || "--"}
                </div>
              </div>
@@ -277,20 +277,25 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
              </div>
              
              {/* Service Type */}
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none">
-               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Tipo Servicio</span>
-               <div className="font-medium text-slate-700">
-                 {recipe.serviceDetails.serviceType}
-               </div>
-               {serviceDesc && (
-                   <div className="text-[10px] text-slate-500 italic mt-1 leading-tight">
-                       {serviceDesc}
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
+               <div className="flex items-start gap-2">
+                   <ConciergeBell size={18} className="text-slate-400 mt-1" />
+                   <div>
+                       <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Tipo Servicio</span>
+                       <div className="font-bold text-slate-800">
+                         {recipe.serviceDetails.serviceType}
+                       </div>
+                       {serviceDesc && (
+                           <div className="text-xs text-slate-500 italic mt-1 leading-tight">
+                               {serviceDesc}
+                           </div>
+                       )}
                    </div>
-               )}
+               </div>
              </div>
 
              {/* Yield */}
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none">
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Rendimiento</span>
                <div className="font-medium text-slate-700 flex items-center gap-2">
                  <Users size={16} className="text-slate-400"/>
