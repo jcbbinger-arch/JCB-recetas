@@ -96,7 +96,6 @@ const TEMPERATURE_PRESETS = {
 
 export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, onCancel }) => {
   const [recipe, setRecipe] = useState<Recipe>(() => {
-    // 1. Create a full blank recipe structure
     const blankRecipe: Recipe = {
         ...DEFAULT_RECIPE,
         id: generateId(),
@@ -107,10 +106,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
         serviceDetails: { ...DEFAULT_RECIPE.serviceDetails }
     };
 
-    // 2. Load initial data if exists
     if (initialRecipe) {
         const elaborations = (initialRecipe.elaborations && initialRecipe.elaborations.length > 0) 
-            ? initialRecipe.elaborations.map(e => ({ ...e, photos: e.photos || [] })) // Ensure photos exist
+            ? initialRecipe.elaborations.map(e => ({ ...e, photos: e.photos || [] })) 
             : [{ id: generateId(), name: 'Elaboración Principal', ingredients: initialRecipe.ingredients || [], instructions: initialRecipe.instructions || '', photos: [] }];
 
         if (initialRecipe.id) {
@@ -133,7 +131,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   });
 
   const [products, setProducts] = useState<MasterProduct[]>([]);
-  // activeSearchIndex now tracks which Elaboration AND which Ingredient row is active
   const [activeSearch, setActiveSearch] = useState<{ elabIndex: number, ingIndex: number } | null>(null);
   
   const searchWrapperRef = useRef<HTMLDivElement>(null);
@@ -188,8 +185,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
      handleServiceDetailChange('servingTemp', current + separator + tempString);
   };
 
-  // --- ELABORATION MANAGEMENT ---
-
   const addElaboration = () => {
     setRecipe(prev => ({
         ...prev,
@@ -243,8 +238,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
       setRecipe(prev => ({ ...prev, elaborations: newElabs }));
   };
 
-  // --- INGREDIENT MANAGEMENT ---
-
   const handleIngredientChange = (elabIndex: number, ingIndex: number, field: keyof Ingredient, value: any) => {
     const newElabs = [...recipe.elaborations];
     const newIngredients = [...newElabs[elabIndex].ingredients];
@@ -277,8 +270,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     setRecipe(prev => ({ ...prev, elaborations: newElabs }));
     setActiveSearch(null);
   };
-
-  // --- IMAGES ---
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'photo' | 'logo') => {
     const file = e.target.files?.[0];
@@ -314,8 +305,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     }));
   };
 
-  // --- SUBMIT ---
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipe.name) {
@@ -331,7 +320,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     return products.filter(p => p.nombre.toLowerCase().includes(term)).slice(0, 8);
   };
 
-  // --- NEW PRODUCT CREATION LOGIC ---
   const initiateCreateProduct = (elabIndex: number, ingIndex: number, name: string) => {
     setPendingProductCreate({ elabIndex, ingIndex });
     setNewProductName(name);
@@ -380,7 +368,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     });
   };
 
-  // Helper for service description
   const selectedServiceInfo = SERVICE_TYPES_INFO.find(s => s.label === recipe.serviceDetails.serviceType) || SERVICE_TYPES_INFO[0];
 
   if (!recipe || !recipe.elaborations) {
@@ -544,9 +531,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
             </div>
 
             {recipe.elaborations.map((elab, elabIndex) => (
-                <section key={elab.id} className="border border-slate-200 rounded-2xl bg-slate-50 overflow-hidden shadow-sm relative transition-all hover:shadow-md">
+                <section key={elab.id} className="border border-slate-200 rounded-2xl bg-slate-50 shadow-sm relative transition-all hover:shadow-md">
                     {/* Elaboration Header */}
-                    <div className="bg-slate-100 p-4 border-b border-slate-200 flex items-center gap-4">
+                    <div className="bg-slate-100 p-4 border-b border-slate-200 flex items-center gap-4 rounded-t-2xl">
                         <div className="bg-slate-200 p-2 rounded text-slate-500">
                              <GripVertical size={20} />
                         </div>
@@ -580,14 +567,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                                 </button>
                              </div>
                              
-                             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                             <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                                 <table className="w-full">
                                     <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                                         <tr>
-                                            <th className="px-3 py-2 text-left font-bold w-1/2">Producto</th>
+                                            <th className="px-3 py-2 text-left font-bold w-1/2 rounded-tl-xl">Producto</th>
                                             <th className="px-3 py-2 text-left font-bold">Cant.</th>
                                             <th className="px-3 py-2 text-left font-bold">Ud.</th>
-                                            <th className="px-1"></th>
+                                            <th className="px-1 rounded-tr-xl"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -604,7 +591,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                                                     />
                                                     {/* Dropdown for this specific row */}
                                                     {activeSearch?.elabIndex === elabIndex && activeSearch?.ingIndex === ingIndex && (
-                                                        <ul className="absolute z-50 left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto ring-1 ring-black/5">
+                                                        <ul className="absolute z-[100] left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto ring-1 ring-black/5">
                                                             {getFilteredProducts(ing.name).map((product, pIdx) => (
                                                                 <li 
                                                                     key={pIdx}
@@ -651,7 +638,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                                         ))}
                                         {elab.ingredients.length === 0 && (
                                             <tr>
-                                                <td colSpan={4} className="p-4 text-center text-xs text-slate-400 italic">Añade ingredientes para esta elaboración.</td>
+                                                <td colSpan={4} className="p-4 text-center text-xs text-slate-400 italic rounded-b-xl">Añade ingredientes para esta elaboración.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -841,7 +828,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                  
                  <div>
                    <label className="block text-sm font-bold text-slate-400 mb-1">Tipo Servicio</label>
-                   {/* Custom Service Type Selector */}
                    <button 
                      type="button"
                      onClick={() => setShowServiceModal(true)}
