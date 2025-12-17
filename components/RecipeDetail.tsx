@@ -14,6 +14,16 @@ const ALL_ALLERGENS_LIST = [
   'Frutos de cáscara', 'Apio', 'Mostaza', 'Sésamo', 'Sulfitos', 'Altramuces', 'Moluscos'
 ];
 
+// Re-using the dictionary for display purposes
+const SERVICE_TYPES_DESC: Record<string, string> = {
+  "A la Americana (Emplatado)": "El plato sale terminado y decorado de cocina. El camarero lo sirve por la derecha.",
+  "A la Inglesa": "Comida en fuente. El camarero sirve al cliente por la izquierda usando pinza.",
+  "A la Francesa": "Comida en fuente. El camarero presenta por la izquierda y el cliente se sirve.",
+  "Al Gueridón (A la Rusa)": "Se finaliza, trincha o flambea en mesa (carrito) y se sirve por la derecha.",
+  "Plat de Milieu (Al centro)": "Platos al centro para compartir. Marcar con cubiertos de servicio.",
+  "Servicio de Buffet": "Auto-servicio. El camarero se centra en bebidas y desbarase."
+};
+
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) => {
   
   const handlePrint = () => {
@@ -38,6 +48,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
     
     return Array.from(allergensSet);
   }, [recipe]);
+
+  const serviceDesc = SERVICE_TYPES_DESC[recipe.serviceDetails.serviceType];
 
   return (
     <div className="max-w-[210mm] mx-auto bg-white shadow-2xl print:shadow-none min-h-screen animate-in fade-in duration-500">
@@ -270,6 +282,11 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                <div className="font-medium text-slate-700">
                  {recipe.serviceDetails.serviceType}
                </div>
+               {serviceDesc && (
+                   <div className="text-[10px] text-slate-500 italic mt-1 leading-tight">
+                       {serviceDesc}
+                   </div>
+               )}
              </div>
 
              {/* Yield */}

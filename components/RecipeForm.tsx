@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, Ingredient, DEFAULT_RECIPE, Elaboration } from '../types';
-import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera, BookOpen, Utensils } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { MasterProduct } from '../data/products';
 import { getProducts, saveProduct } from '../services/storage';
@@ -11,6 +11,66 @@ interface RecipeFormProps {
   onSave: (recipe: Recipe) => void;
   onCancel: () => void;
 }
+
+// --- DATA DICTIONARIES ---
+
+const CUTLERY_PRESETS = {
+  "Entrantes y Cuchara": [
+    { label: "Crema / Sopa caliente", value: "Cuchara sopera" },
+    { label: "Consomé", value: "Cuchara de consomé" },
+    { label: "Pasta larga (Spaghetti)", value: "Tenedor trinchero + Cuchara sopera" },
+    { label: "Pasta corta (Macarrones)", value: "Tenedor trinchero" },
+  ],
+  "Pescados y Mariscos": [
+    { label: "Pescado (limpio o entero)", value: "Pala de pescado + Tenedor de pescado" },
+    { label: "Marisco de cáscara", value: "Cuchillo y tenedor de pescado + Lavadedos" },
+    { label: "Moluscos (Almejas/Mejillones)", value: "Tenedor de pescado" },
+  ],
+  "Carnes": [
+    { label: "Carne blanda / Guisos", value: "Cuchillo trinchero + Tenedor trinchero" },
+    { label: "Carne roja / Chuletón", value: "Cuchillo de carne (Sierra) + Tenedor trinchero" },
+    { label: "Aves / Caza", value: "Cuchillo y tenedor trinchero" },
+  ],
+  "Postres": [
+    { label: "Tartas / Bizcochos", value: "Tenedor de postre" },
+    { label: "Fruta preparada", value: "Cuchillo de postre + Tenedor de postre" },
+    { label: "Helados / Sorbetes", value: "Cuchara de postre" },
+    { label: "Postres combinados", value: "Tenedor + Cuchara de postre" },
+  ]
+};
+
+const SERVICE_TYPES_INFO = [
+  { 
+    id: "Americana", 
+    label: "A la Americana (Emplatado)", 
+    desc: "El plato sale terminado y decorado de cocina. El camarero lo sirve por la derecha." 
+  },
+  { 
+    id: "Inglesa", 
+    label: "A la Inglesa", 
+    desc: "Comida en fuente. El camarero sirve al cliente por la izquierda usando pinza." 
+  },
+  { 
+    id: "Francesa", 
+    label: "A la Francesa", 
+    desc: "Comida en fuente. El camarero presenta por la izquierda y el cliente se sirve." 
+  },
+  { 
+    id: "Gueridón", 
+    label: "Al Gueridón (A la Rusa)", 
+    desc: "Se finaliza, trincha o flambea en mesa (carrito) y se sirve por la derecha." 
+  },
+  { 
+    id: "Centro", 
+    label: "Plat de Milieu (Al centro)", 
+    desc: "Platos al centro para compartir. Marcar con cubiertos de servicio." 
+  },
+  { 
+    id: "Buffet", 
+    label: "Servicio de Buffet", 
+    desc: "Auto-servicio. El camarero se centra en bebidas y desbarase." 
+  }
+];
 
 export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, onCancel }) => {
   const [recipe, setRecipe] = useState<Recipe>(() => {
@@ -56,6 +116,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const [showCreateProductModal, setShowCreateProductModal] = useState(false);
+  const [showCutleryModal, setShowCutleryModal] = useState(false); // New modal state
+  
   const [pendingProductCreate, setPendingProductCreate] = useState<{elabIndex: number, ingIndex: number} | null>(null);
   const [newProductName, setNewProductName] = useState('');
   const [newProductDetails, setNewProductDetails] = useState({
@@ -287,6 +349,9 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
       };
     });
   };
+
+  // Helper for service description
+  const selectedServiceInfo = SERVICE_TYPES_INFO.find(s => s.label === recipe.serviceDetails.serviceType) || SERVICE_TYPES_INFO[0];
 
   if (!recipe || !recipe.elaborations) {
       return <div className="p-10 text-center">Cargando formulario...</div>;
@@ -713,34 +778,101 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
              </div>
 
              <div className="space-y-4">
-                <div>
+                 <div>
                    <label className="block text-sm font-bold text-slate-400 mb-1">Marcaje / Cubiertos</label>
-                   <input
-                     type="text"
-                     value={recipe.serviceDetails.cutlery}
-                     onChange={(e) => handleServiceDetailChange('cutlery', e.target.value)}
-                     className="block w-full rounded-lg border-slate-600 bg-slate-700 text-white p-3"
-                   />
+                   <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={recipe.serviceDetails.cutlery}
+                        onChange={(e) => handleServiceDetailChange('cutlery', e.target.value)}
+                        className="block w-full rounded-lg border-slate-600 bg-slate-700 text-white p-3"
+                        placeholder="Escribe o usa el asistente..."
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowCutleryModal(true)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-lg shadow-lg flex items-center justify-center transition"
+                        title="Asistente de Marcaje"
+                      >
+                         <BookOpen size={20} />
+                      </button>
+                   </div>
                  </div>
+                 
                  <div>
                    <label className="block text-sm font-bold text-slate-400 mb-1">Tipo Servicio</label>
-                   <select
-                     value={recipe.serviceDetails.serviceType}
-                     onChange={(e) => handleServiceDetailChange('serviceType', e.target.value)}
-                     className="block w-full rounded-lg border-slate-600 bg-slate-700 text-white p-3"
-                   >
-                     <option>Emplatado (Americano)</option>
-                     <option>A la inglesa</option>
-                     <option>A la francesa</option>
-                     <option>Gueridón</option>
-                     <option>Buffet</option>
-                   </select>
+                   <div className="bg-slate-700 rounded-lg p-2 border border-slate-600">
+                     <select
+                       value={recipe.serviceDetails.serviceType}
+                       onChange={(e) => handleServiceDetailChange('serviceType', e.target.value)}
+                       className="block w-full bg-transparent text-white p-1 outline-none text-sm font-bold"
+                     >
+                       {SERVICE_TYPES_INFO.map(type => (
+                         <option key={type.id} value={type.label}>{type.label}</option>
+                       ))}
+                     </select>
+                     {/* Description Box */}
+                     <div className="mt-2 pt-2 border-t border-slate-600 text-xs text-slate-300 italic">
+                        <span className="font-bold text-emerald-400 block mb-1">Acción del Camarero:</span>
+                        {selectedServiceInfo.desc}
+                     </div>
+                   </div>
                  </div>
              </div>
            </div>
         </section>
       </div>
     </form>
+
+    {/* CUTLERY ASSISTANT MODAL */}
+    {showCutleryModal && (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="bg-slate-900 text-white p-6 flex justify-between items-center shrink-0">
+               <div className="flex items-center gap-3">
+                  <div className="bg-emerald-500 p-2 rounded-lg text-white">
+                     <Utensils size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Asistente de Marcaje</h3>
+                    <p className="text-xs text-slate-400">Diccionario Cocina-Sala</p>
+                  </div>
+               </div>
+               <button onClick={() => setShowCutleryModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto bg-slate-50 flex-grow">
+               <div className="space-y-6">
+                  {Object.entries(CUTLERY_PRESETS).map(([category, items]) => (
+                     <div key={category} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <h4 className="bg-slate-100 px-4 py-2 font-bold text-slate-700 text-sm border-b border-slate-200">{category}</h4>
+                        <div className="divide-y divide-slate-100">
+                           {items.map((item, idx) => (
+                              <button 
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                   handleServiceDetailChange('cutlery', item.value);
+                                   setShowCutleryModal(false);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 hover:text-emerald-700 transition flex justify-between items-center group"
+                              >
+                                 <span className="font-medium text-sm text-slate-800 group-hover:text-emerald-800">{item.label}</span>
+                                 <span className="text-xs text-slate-400 italic group-hover:text-emerald-600">{item.value}</span>
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            </div>
+            
+            <div className="p-4 border-t bg-white shrink-0 text-center">
+               <button onClick={() => setShowCutleryModal(false)} className="text-slate-500 text-sm hover:underline">Cancelar</button>
+            </div>
+         </div>
+      </div>
+    )}
 
     {/* Create Product Modal */}
     {showCreateProductModal && (
