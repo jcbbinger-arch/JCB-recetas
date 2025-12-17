@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MasterProduct } from '../data/products';
 import { getProducts, saveProduct, deleteProduct } from '../services/storage';
@@ -13,10 +14,11 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   
   // New Product Form State
-  const [newProd, setNewProd] = useState<MasterProduct>({
+  const [newProd, setNewProd] = useState<MasterProduct & { precioStr: string }>({
     nombre: '',
     unidad: 'Kg',
     precio: null,
+    precioStr: '',
     alérgenos: []
   });
 
@@ -37,13 +39,32 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleDecimalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Soporte para teclado numérico si fuera necesario forzar
+  };
+
+  const parseDecimal = (val: string): number => {
+    if (!val) return 0;
+    const sanitized = val.replace(',', '.');
+    const parsed = parseFloat(sanitized);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProd.nombre) return;
-    saveProduct(newProd);
+    
+    const finalProduct: MasterProduct = {
+      nombre: newProd.nombre,
+      unidad: newProd.unidad,
+      precio: newProd.precioStr ? parseDecimal(newProd.precioStr) : null,
+      alérgenos: newProd.alérgenos
+    };
+
+    saveProduct(finalProduct);
     loadProducts();
     setShowAddForm(false);
-    setNewProd({ nombre: '', unidad: 'Kg', precio: null, alérgenos: [] });
+    setNewProd({ nombre: '', unidad: 'Kg', precio: null, precioStr: '', alérgenos: [] });
   };
 
   const toggleAllergen = (allergen: string) => {
@@ -169,11 +190,13 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Precio (€)</label>
                   <input 
-                    type="number" step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     className="mt-1 w-full p-2 border rounded-md"
-                    value={newProd.precio || ''}
-                    onChange={e => setNewProd({...newProd, precio: parseFloat(e.target.value)})}
-                    placeholder="0.00"
+                    value={newProd.precioStr}
+                    onKeyDown={handleDecimalKeyDown}
+                    onChange={e => setNewProd({...newProd, precioStr: e.target.value})}
+                    placeholder="0,00"
                   />
                 </div>
                 <div>

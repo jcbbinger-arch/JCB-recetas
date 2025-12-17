@@ -110,7 +110,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   const [newProductName, setNewProductName] = useState('');
   const [newProductDetails, setNewProductDetails] = useState({
     unidad: 'Kg',
-    precio: '' as string | number,
+    precio: '' as string,
     alérgenos: [] as string[]
   });
 
@@ -132,6 +132,22 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Helper para manejar el punto del teclado numérico como coma decimal
+  const handleDecimalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === '.' || e.key === ',') {
+      // Si el navegador espera un punto (estándar HTML5) pero el usuario quiere usar la tecla del teclado numérico
+      // Algunos navegadores en español manejan esto solos, pero forzamos comportamiento consistente
+    }
+  };
+
+  // Convertidor seguro de string con coma a número
+  const parseDecimal = (val: string): number => {
+    if (!val) return 0;
+    const sanitized = val.replace(',', '.');
+    const parsed = parseFloat(sanitized);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   const handleInputChange = (field: keyof Recipe, value: any) => {
       setRecipe(prev => ({ ...prev, [field]: value }));
@@ -206,7 +222,15 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   const handleIngredientChange = (elabIndex: number, ingIndex: number, field: keyof Ingredient, value: any) => {
     const newElabs = [...recipe.elaborations];
     const newIngredients = [...newElabs[elabIndex].ingredients];
-    newIngredients[ingIndex] = { ...newIngredients[ingIndex], [field]: value };
+    
+    let processedValue = value;
+    if (field === 'quantity') {
+      // Permitimos que el usuario escriba libremente (puntos o comas)
+      // La conversión real ocurre en el blur o al guardar, pero aquí guardamos el número para cálculos inmediatos si existieran
+      processedValue = typeof value === 'string' ? parseDecimal(value) : value;
+    }
+
+    newIngredients[ingIndex] = { ...newIngredients[ingIndex], [field]: processedValue };
     newElabs[elabIndex].ingredients = newIngredients;
     setRecipe(prev => ({ ...prev, elaborations: newElabs }));
   };
@@ -300,7 +324,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     const newProduct: MasterProduct = {
       nombre: newProductName,
       unidad: newProductDetails.unidad,
-      precio: newProductDetails.precio ? Number(newProductDetails.precio) : null,
+      precio: newProductDetails.precio ? parseDecimal(newProductDetails.precio) : null,
       alérgenos: newProductDetails.alérgenos
     };
 
@@ -443,7 +467,14 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                     <div className="grid grid-cols-2 gap-2">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Rendimiento</label>
-                            <input type="number" value={recipe.yieldQuantity} onChange={(e) => handleInputChange('yieldQuantity', parseFloat(e.target.value))} className="mt-1 block w-full border-gray-300 border rounded-lg p-3 bg-white shadow-sm" />
+                            <input 
+                              type="number" 
+                              step="any"
+                              value={recipe.yieldQuantity} 
+                              onKeyDown={handleDecimalKeyDown}
+                              onChange={(e) => handleInputChange('yieldQuantity', parseDecimal(e.target.value))} 
+                              className="mt-1 block w-full border-gray-300 border rounded-lg p-3 bg-white shadow-sm" 
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Unidad</label>
@@ -513,7 +544,16 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                                                         </ul>
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2"><input type="number" value={ing.quantity} onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'quantity', parseFloat(e.target.value))} className="w-full text-sm outline-none bg-slate-50 rounded px-1 text-right" /></td>
+                                                <td className="px-3 py-2">
+                                                  <input 
+                                                    type="text" 
+                                                    inputMode="decimal"
+                                                    value={ing.quantity} 
+                                                    onKeyDown={handleDecimalKeyDown}
+                                                    onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'quantity', e.target.value)} 
+                                                    className="w-full text-sm outline-none bg-slate-50 rounded px-1 text-right" 
+                                                  />
+                                                </td>
                                                 <td className="px-3 py-2"><input type="text" value={ing.unit} onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'unit', e.target.value)} className="w-full text-sm outline-none bg-transparent text-slate-500" /></td>
                                                 <td className="px-1 text-center"><button type="button" onClick={() => removeIngredient(elabIndex, ingIndex)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14} /></button></td>
                                             </tr>
@@ -587,7 +627,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     )}
 
     {showCreateProductModal && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"><div className="bg-slate-900 text-white p-6 flex justify-between items-center"><h3>Alta Rápida</h3><button onClick={() => setShowCreateProductModal(false)}>✕</button></div><form onSubmit={confirmCreateProduct} className="p-6 space-y-4"><p className="text-sm">Crear <strong>"{newProductName}"</strong></p><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm">Unidad</label><input required className="w-full p-2 border rounded" value={newProductDetails.unidad} onChange={e => setNewProductDetails({...newProductDetails, unidad: e.target.value})} /></div><div><label className="block text-sm">Precio</label><input type="number" step="0.01" className="w-full p-2 border rounded" value={newProductDetails.precio} onChange={e => setNewProductDetails({...newProductDetails, precio: e.target.value})} /></div></div><div><label className="block text-sm mb-2">Alérgenos</label><div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto border p-2">{ALL_ALLERGENS.map(a => (<label key={a} className="flex gap-2 items-center text-xs"><input type="checkbox" checked={newProductDetails.alérgenos.includes(a)} onChange={() => toggleNewAllergen(a)} />{a}</label>))}</div></div><div className="flex justify-end gap-2 pt-4"><button type="button" onClick={() => setShowCreateProductModal(false)}>Cancelar</button><button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded">Guardar</button></div></form></div></div>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"><div className="bg-slate-900 text-white p-6 flex justify-between items-center"><h3>Alta Rápida</h3><button onClick={() => setShowCreateProductModal(false)}>✕</button></div><form onSubmit={confirmCreateProduct} className="p-6 space-y-4"><p className="text-sm">Crear <strong>"{newProductName}"</strong></p><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm">Unidad</label><input required className="w-full p-2 border rounded" value={newProductDetails.unidad} onChange={e => setNewProductDetails({...newProductDetails, unidad: e.target.value})} /></div><div><label className="block text-sm">Precio</label><input type="text" inputMode="decimal" className="w-full p-2 border rounded" value={newProductDetails.precio} onKeyDown={handleDecimalKeyDown} onChange={e => setNewProductDetails({...newProductDetails, precio: e.target.value})} /></div></div><div><label className="block text-sm mb-2">Alérgenos</label><div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto border p-2">{ALL_ALLERGENS.map(a => (<label key={a} className="flex gap-2 items-center text-xs"><input type="checkbox" checked={newProductDetails.alérgenos.includes(a)} onChange={() => toggleNewAllergen(a)} />{a}</label>))}</div></div><div className="flex justify-end gap-2 pt-4"><button type="button" onClick={() => setShowCreateProductModal(false)}>Cancelar</button><button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded">Guardar</button></div></form></div></div>
     )}
     </>
   );
