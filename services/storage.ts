@@ -1,11 +1,18 @@
 
 import { Recipe, UserProfile } from '../types';
 import { MASTER_PRODUCTS, MasterProduct } from '../data/products';
-import { v4 as uuidv4 } from 'uuid';
 
 const RECIPE_STORAGE_KEY = 'kitchen_recipes_v1';
 const PRODUCT_STORAGE_KEY = 'kitchen_products_v1';
 const PROFILE_STORAGE_KEY = 'kitchen_profile_v1';
+
+// Helper for ID generation (replaces uuid dependency)
+export const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
 
 // --- USER PROFILE ---
 
@@ -27,10 +34,26 @@ export const saveUserProfile = (profile: UserProfile): void => {
 export const getRecipes = (): Recipe[] => {
   try {
     const data = localStorage.getItem(RECIPE_STORAGE_KEY);
-    const rawRecipes = data ? JSON.parse(data) : [];
+    if (!data) return [];
+    
+    let rawRecipes: any;
+    try {
+      rawRecipes = JSON.parse(data);
+    } catch (e) {
+      console.error("Invalid JSON in storage", e);
+      return [];
+    }
+
+    if (!Array.isArray(rawRecipes)) {
+      console.warn("Storage data is not an array, resetting.");
+      return [];
+    }
     
     // Migration Logic: Ensure recipes support multiple elaborations and photos inside them
     return rawRecipes.map((r: any) => {
+      // Safety check for basic structure
+      if (!r || typeof r !== 'object') return null;
+
       let updatedRecipe = { ...r };
 
       // Migrate old processPhotos if missing
@@ -39,13 +62,13 @@ export const getRecipes = (): Recipe[] => {
       }
 
       // Migrate flat ingredients/instructions to elaborations
-      if (!updatedRecipe.elaborations || updatedRecipe.elaborations.length === 0) {
+      if (!updatedRecipe.elaborations || !Array.isArray(updatedRecipe.elaborations) || updatedRecipe.elaborations.length === 0) {
         updatedRecipe.elaborations = [
           {
-            id: uuidv4(),
+            id: generateId(),
             name: 'Elaboración Principal',
-            ingredients: r.ingredients || [],
-            instructions: r.instructions || '',
+            ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+            instructions: typeof r.instructions === 'string' ? r.instructions : '',
             photos: []
           }
         ];
@@ -56,12 +79,25 @@ export const getRecipes = (): Recipe[] => {
         // Ensure existing elaborations have the photos array
         updatedRecipe.elaborations = updatedRecipe.elaborations.map((e: any) => ({
             ...e,
-            photos: e.photos || [] 
+            photos: Array.isArray(e.photos) ? e.photos : [],
+            id: e.id || generateId()
         }));
       }
 
+      // Ensure serviceDetails exists
+      if (!updatedRecipe.serviceDetails) {
+        updatedRecipe.serviceDetails = {
+           presentation: '',
+           servingTemp: '',
+           cutlery: '',
+           passTime: '',
+           serviceType: 'Emplatado',
+           clientDescription: ''
+        };
+      }
+
       return updatedRecipe;
-    });
+    }).filter(Boolean) as Recipe[]; // Filter out nulls
 
   } catch (error) {
     console.error("Error reading recipes from localStorage", error);
@@ -95,7 +131,8 @@ export const exportRecipeToJSON = (recipe: Recipe) => {
   const dataStr = JSON.stringify(recipe, null, 2);
   const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
   
-  const exportFileDefaultName = `${recipe.name.replace(/\s+/g, '_').toLowerCase()}_ficha.json`;
+  const safeName = (recipe.name || 'receta').replace(/\s+/g, '_').toLowerCase();
+  const exportFileDefaultName = `${safeName}_ficha.json`;
   
   const linkElement = document.createElement('a');
   linkElement.setAttribute('href', dataUri);
@@ -109,7 +146,8 @@ export const getProducts = (): MasterProduct[] => {
   try {
     const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
     if (data) {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : MASTER_PRODUCTS;
     } else {
       localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(MASTER_PRODUCTS));
       return MASTER_PRODUCTS;

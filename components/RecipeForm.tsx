@@ -2,9 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, Ingredient, DEFAULT_RECIPE, Elaboration } from '../types';
 import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera, BookOpen, Utensils } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { MasterProduct } from '../data/products';
-import { getProducts, saveProduct } from '../services/storage';
+import { getProducts, saveProduct, generateId } from '../services/storage';
 
 interface RecipeFormProps {
   initialRecipe?: Recipe;
@@ -77,10 +76,10 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     // 1. Create a full blank recipe structure
     const blankRecipe: Recipe = {
         ...DEFAULT_RECIPE,
-        id: uuidv4(),
+        id: generateId(),
         processPhotos: [],
         elaborations: [
-           { id: uuidv4(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
+           { id: generateId(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
         ],
         serviceDetails: { ...DEFAULT_RECIPE.serviceDetails }
     };
@@ -89,7 +88,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     if (initialRecipe) {
         const elaborations = (initialRecipe.elaborations && initialRecipe.elaborations.length > 0) 
             ? initialRecipe.elaborations.map(e => ({ ...e, photos: e.photos || [] })) // Ensure photos exist
-            : [{ id: uuidv4(), name: 'Elaboración Principal', ingredients: initialRecipe.ingredients || [], instructions: initialRecipe.instructions || '', photos: [] }];
+            : [{ id: generateId(), name: 'Elaboración Principal', ingredients: initialRecipe.ingredients || [], instructions: initialRecipe.instructions || '', photos: [] }];
 
         if (initialRecipe.id) {
             return {
@@ -165,7 +164,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
         ...prev,
         elaborations: [
             ...prev.elaborations, 
-            { id: uuidv4(), name: '', ingredients: [], instructions: '', photos: [] }
+            { id: generateId(), name: '', ingredients: [], instructions: '', photos: [] }
         ]
     }));
   };
