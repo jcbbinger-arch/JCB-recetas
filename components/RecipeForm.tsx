@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, Ingredient, DEFAULT_RECIPE, Elaboration } from '../types';
-import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera, BookOpen, Utensils, Thermometer, ConciergeBell, Check, Link as LinkIcon } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, ChefHat, ImageIcon, User, ImagePlus, X, GripVertical, Camera, BookOpen, Utensils, Thermometer, ConciergeBell, Check, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { MasterProduct } from '../data/products';
-import { getProducts, saveProduct, generateId, getCategories } from '../services/storage';
+import { getProducts, saveProduct, generateId, getCategories, findProductByName } from '../services/storage';
 
 interface RecipeFormProps {
   initialRecipe?: Recipe;
@@ -134,7 +134,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   }, []);
 
   const handleDecimalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Permitimos teclas de navegación y borrado
     const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', '.', ','];
     if (allowedKeys.includes(e.key) || /^[0-9]$/.test(e.key)) {
       return;
@@ -222,9 +221,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
   const handleIngredientChange = (elabIndex: number, ingIndex: number, field: keyof Ingredient, value: any) => {
     const newElabs = [...recipe.elaborations];
     const newIngredients = [...newElabs[elabIndex].ingredients];
-    
-    // IMPORTANTE: Para cantidades, mantenemos el valor exacto como string 
-    // para permitir que el usuario escriba "0." o "0.583" sin que el estado lo resetee a 0.
     newIngredients[ingIndex] = { ...newIngredients[ingIndex], [field]: value };
     newElabs[elabIndex].ingredients = newIngredients;
     setRecipe(prev => ({ ...prev, elaborations: newElabs }));
@@ -296,7 +292,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
       return;
     }
 
-    // SANITIZACIÓN: Antes de guardar, convertimos todas las cantidades de string a number
     const sanitizedRecipe = {
         ...recipe,
         yieldQuantity: parseDecimal(recipe.yieldQuantity),
@@ -363,12 +358,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     });
   };
 
-  const selectedServiceInfo = SERVICE_TYPES_INFO.find(s => s.label === recipe.serviceDetails.serviceType) || SERVICE_TYPES_INFO[0];
-
-  if (!recipe || !recipe.elaborations) {
-      return <div className="p-10 text-center">Cargando formulario...</div>;
-  }
-
   return (
     <>
     <form onSubmit={handleSubmit} className="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl mb-10 animate-in fade-in zoom-in duration-300 border border-slate-100">
@@ -396,9 +385,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
         
         {/* Section 1: Basic Data */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            {/* Main Photo */}
             <div className="lg:col-span-1">
-               <h3 className="text-sm font-bold text-slate-500 uppercase mb-3">Foto Principal (Cuadrada)</h3>
+               <h3 className="text-sm font-bold text-slate-500 uppercase mb-3">Foto Principal</h3>
                <div className="aspect-square w-full rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-white hover:border-emerald-500 transition flex flex-col items-center justify-center relative overflow-hidden group">
                   {recipe.photo ? (
                     <img src={recipe.photo} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
@@ -415,7 +403,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                </div>
             </div>
 
-            {/* Basic Info Inputs */}
             <div className="lg:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-100">
                <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -425,7 +412,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                      <span className="text-xs text-gray-400 uppercase font-bold">Logo:</span>
                      <div className="w-12 h-12 rounded-full border bg-white overflow-hidden relative hover:border-emerald-500 transition">
                         {recipe.logo ? <img src={recipe.logo} className="w-full h-full object-contain"/> : <ImageIcon className="w-full h-full p-3 text-gray-300"/>}
-                        {/* Fix: Using handleImageUpload with 'logo' parameter as handleProfileImageUpload is not defined in this scope */}
                         <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'logo')} className="absolute inset-0 opacity-0 cursor-pointer"/>
                      </div>
                   </div>
@@ -456,13 +442,12 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                         </select>
-                        <p className="text-[10px] text-gray-400 mt-1 italic">Puedes gestionar categorías en Configuración.</p>
                      </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Enlace Vídeo / Web Original</label>
+                        <label className="block text-sm font-medium text-gray-700">Enlace Vídeo / Web</label>
                         <div className="relative">
                             <LinkIcon className="absolute left-3 top-3 text-gray-400" size={18} />
                             <input 
@@ -495,7 +480,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
             </div>
         </section>
 
-        {/* Section 2: Elaborations */}
+        {/* Section 2: Elaborations & Ingredients with Validation Signals */}
         <div className="space-y-6">
             <div className="flex justify-between items-end border-b pb-2">
                 <h3 className="text-xl font-bold text-slate-800">Elaboraciones y Escandallo</h3>
@@ -533,39 +518,71 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 overflow-visible">
-                                        {elab.ingredients.map((ing, ingIndex) => (
-                                            <tr key={ingIndex} className="hover:bg-slate-50 group overflow-visible">
-                                                <td className="px-3 py-2 relative overflow-visible">
-                                                    <input type="text" value={ing.name} onFocus={() => setActiveSearch({ elabIndex, ingIndex })} onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'name', e.target.value)} className="w-full text-sm outline-none bg-transparent font-medium" placeholder="Buscar..." />
-                                                    {activeSearch?.elabIndex === elabIndex && activeSearch?.ingIndex === ingIndex && (
-                                                        <ul className="absolute z-[100] left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto ring-1 ring-black/5">
-                                                            {getFilteredProducts(ing.name).map((product, pIdx) => (
-                                                                <li key={pIdx} onMouseDown={() => selectProduct(elabIndex, ingIndex, product)} className="px-4 py-2 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0">
-                                                                    <div className="font-bold text-gray-800">{product.nombre}</div>
-                                                                    <div className="text-xs text-gray-500">{product.unidad}</div>
-                                                                </li>
-                                                            ))}
-                                                            {ing.name.length > 2 && getFilteredProducts(ing.name).length === 0 && (
-                                                                <li onMouseDown={() => initiateCreateProduct(elabIndex, ingIndex, ing.name)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-blue-600 font-bold text-xs flex items-center gap-2">
-                                                                    <Plus size={14} /> Crear "{ing.name}"
-                                                                </li>
-                                                            )}
-                                                        </ul>
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-2">
-                                                  <input 
-                                                    type="text" 
-                                                    value={ing.quantity} 
-                                                    onKeyDown={handleDecimalKeyDown}
-                                                    onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'quantity', e.target.value)} 
-                                                    className="w-full text-sm outline-none bg-slate-50 rounded px-1 text-right" 
-                                                  />
-                                                </td>
-                                                <td className="px-3 py-2"><input type="text" value={ing.unit} onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'unit', e.target.value)} className="w-full text-sm outline-none bg-transparent text-slate-500" /></td>
-                                                <td className="px-1 text-center"><button type="button" onClick={() => removeIngredient(elabIndex, ingIndex)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14} /></button></td>
-                                            </tr>
-                                        ))}
+                                        {elab.ingredients.map((ing, ingIndex) => {
+                                            const productExists = ing.name ? findProductByName(ing.name) : true;
+                                            
+                                            return (
+                                              <tr key={ingIndex} className="hover:bg-slate-50 group overflow-visible">
+                                                  <td className="px-3 py-2 relative overflow-visible">
+                                                      <div className="flex items-center gap-2">
+                                                        <div className="relative flex-grow">
+                                                          <input 
+                                                            type="text" 
+                                                            value={ing.name} 
+                                                            onFocus={() => setActiveSearch({ elabIndex, ingIndex })} 
+                                                            onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'name', e.target.value)} 
+                                                            className={`w-full text-sm outline-none bg-transparent font-medium pr-8 ${!productExists && ing.name ? 'text-amber-600' : 'text-slate-800'}`} 
+                                                            placeholder="Buscar..." 
+                                                          />
+                                                          {ing.name && (
+                                                            <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                                                              {productExists ? (
+                                                                <Check size={14} className="text-emerald-500" title="Encontrado en base de datos" />
+                                                              ) : (
+                                                                <button 
+                                                                  type="button"
+                                                                  onClick={() => initiateCreateProduct(elabIndex, ingIndex, ing.name)}
+                                                                  className="text-amber-500 hover:scale-110 transition-transform"
+                                                                  title="No está en base de datos. Clic para crear."
+                                                                >
+                                                                  <AlertCircle size={14} />
+                                                                </button>
+                                                              )}
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                      
+                                                      {activeSearch?.elabIndex === elabIndex && activeSearch?.ingIndex === ingIndex && (
+                                                          <ul className="absolute z-[100] left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-auto ring-1 ring-black/5">
+                                                              {getFilteredProducts(ing.name).map((product, pIdx) => (
+                                                                  <li key={pIdx} onMouseDown={() => selectProduct(elabIndex, ingIndex, product)} className="px-4 py-2 hover:bg-emerald-50 cursor-pointer text-sm border-b border-gray-50 last:border-0">
+                                                                      <div className="font-bold text-gray-800">{product.nombre}</div>
+                                                                      <div className="text-xs text-gray-500">{product.unidad}</div>
+                                                                  </li>
+                                                              ))}
+                                                              {ing.name.length > 2 && getFilteredProducts(ing.name).length === 0 && (
+                                                                  <li onMouseDown={() => initiateCreateProduct(elabIndex, ingIndex, ing.name)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-blue-600 font-bold text-xs flex items-center gap-2">
+                                                                      <Plus size={14} /> Crear "{ing.name}"
+                                                                  </li>
+                                                              )}
+                                                          </ul>
+                                                      )}
+                                                  </td>
+                                                  <td className="px-3 py-2">
+                                                    <input 
+                                                      type="text" 
+                                                      value={ing.quantity} 
+                                                      onKeyDown={handleDecimalKeyDown}
+                                                      onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'quantity', e.target.value)} 
+                                                      className="w-full text-sm outline-none bg-slate-50 rounded px-1 text-right" 
+                                                    />
+                                                  </td>
+                                                  <td className="px-3 py-2"><input type="text" value={ing.unit} onChange={(e) => handleIngredientChange(elabIndex, ingIndex, 'unit', e.target.value)} className="w-full text-sm outline-none bg-transparent text-slate-500" /></td>
+                                                  <td className="px-1 text-center"><button type="button" onClick={() => removeIngredient(elabIndex, ingIndex)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><Trash2 size={14} /></button></td>
+                                              </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                              </div>
@@ -635,7 +652,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ initialRecipe, onSave, o
     )}
 
     {showCreateProductModal && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"><div className="bg-slate-900 text-white p-6 flex justify-between items-center"><h3>Alta Rápida</h3><button onClick={() => setShowCreateProductModal(false)}>✕</button></div><form onSubmit={confirmCreateProduct} className="p-6 space-y-4"><p className="text-sm">Crear <strong>"{newProductName}"</strong></p><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm">Unidad</label><input required className="w-full p-2 border rounded" value={newProductDetails.unidad} onChange={e => setNewProductDetails({...newProductDetails, unidad: e.target.value})} /></div><div><label className="block text-sm">Precio</label><input type="text" className="w-full p-2 border rounded" value={newProductDetails.precio} onKeyDown={handleDecimalKeyDown} onChange={e => setNewProductDetails({...newProductDetails, precio: e.target.value})} /></div></div><div><label className="block text-sm mb-2">Alérgenos</label><div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto border p-2">{ALL_ALLERGENS.map(a => (<label key={a} className="flex gap-2 items-center text-xs"><input type="checkbox" checked={newProductDetails.alérgenos.includes(a)} onChange={() => toggleNewAllergen(a)} />{a}</label>))}</div></div><div className="flex justify-end gap-2 pt-4"><button type="button" onClick={() => setShowCreateProductModal(false)}>Cancelar</button><button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded">Guardar</button></div></form></div></div>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"><div className="bg-slate-900 text-white p-6 flex justify-between items-center"><h3>Alta Rápida de Producto</h3><button onClick={() => setShowCreateProductModal(false)}>✕</button></div><form onSubmit={confirmCreateProduct} className="p-6 space-y-4"><p className="text-sm">Configurando <strong>"{newProductName}"</strong> para la base de datos.</p><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm">Unidad</label><input required className="w-full p-2 border rounded" value={newProductDetails.unidad} onChange={e => setNewProductDetails({...newProductDetails, unidad: e.target.value})} /></div><div><label className="block text-sm">Precio</label><input type="text" className="w-full p-2 border rounded" value={newProductDetails.precio} onKeyDown={handleDecimalKeyDown} onChange={e => setNewProductDetails({...newProductDetails, precio: e.target.value})} /></div></div><div><label className="block text-sm mb-2">Alérgenos</label><div className="grid grid-cols-2 gap-2 max-h-40 overflow-auto border p-2">{ALL_ALLERGENS.map(a => (<label key={a} className="flex gap-2 items-center text-xs"><input type="checkbox" checked={newProductDetails.alérgenos.includes(a)} onChange={() => toggleNewAllergen(a)} />{a}</label>))}</div></div><div className="flex justify-end gap-2 pt-4"><button type="button" onClick={() => setShowCreateProductModal(false)} className="px-4 py-2">Cancelar</button><button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded font-bold shadow-lg">Guardar e Insertar</button></div></form></div></div>
     )}
     </>
   );
