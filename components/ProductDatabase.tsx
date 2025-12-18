@@ -1,17 +1,22 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MasterProduct } from '../data/products';
 import { getProducts, saveProduct, deleteProduct } from '../services/storage';
-import { Search, Plus, Trash2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Search, Plus, Trash2, ArrowLeft, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface ProductDatabaseProps {
   onBack: () => void;
 }
 
+type SortField = 'nombre' | 'precio' | 'unidad';
+type SortOrder = 'asc' | 'desc';
+
 export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
   const [products, setProducts] = useState<MasterProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('nombre');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   
   // New Product Form State
   const [newProd, setNewProd] = useState<MasterProduct & { precioStr: string }>({
@@ -35,12 +40,44 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     setProducts(getProducts());
   };
 
-  const filteredProducts = products.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedAndFilteredProducts = useMemo(() => {
+    let result = products.filter(p => 
+      p.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    result.sort((a, b) => {
+      let valA: any = a[sortField];
+      let valB: any = b[sortField];
+
+      // Manejo de nulos en precio
+      if (valA === null) valA = 0;
+      if (valB === null) valB = 0;
+
+      if (typeof valA === 'string') {
+        return sortOrder === 'asc' 
+          ? valA.localeCompare(valB) 
+          : valB.localeCompare(valA);
+      } else {
+        return sortOrder === 'asc' 
+          ? valA - valB 
+          : valB - valA;
+      }
+    });
+
+    return result;
+  }, [products, searchTerm, sortField, sortOrder]);
 
   const handleDecimalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Soporte para teclado numérico si fuera necesario forzar
+    // Tecla punto tratada como coma si se desea o viceversa
   };
 
   const parseDecimal = (val: string): number => {
@@ -86,6 +123,11 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     }
   };
 
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown size={14} className="text-gray-300" />;
+    return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans animate-in fade-in duration-300">
       {/* Header */}
@@ -97,12 +139,14 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
             </button>
             <div>
               <h1 className="text-xl font-bold">Base de Datos de Productos</h1>
-              <p className="text-xs text-slate-400">{products.length} referencias registradas</p>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-widest">
+                {products.length} Referencias Totales
+              </p>
             </div>
           </div>
           <button 
             onClick={() => setShowAddForm(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow-md flex items-center gap-2 transition"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition"
           >
             <Plus size={20} /> Nuevo Producto
           </button>
@@ -111,50 +155,79 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
 
       <main className="max-w-7xl mx-auto w-full px-4 py-8 flex-grow">
         
-        {/* Search */}
-        <div className="mb-6 relative">
-           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-           <input 
-             type="text"
-             placeholder="Buscar ingrediente..."
-             value={searchTerm}
-             onChange={(e) => setSearchTerm(e.target.value)}
-             className="w-full pl-10 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-           />
+        {/* Search & Counter */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
+          <div className="relative flex-grow w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <input 
+              type="text"
+              placeholder="Buscar por nombre (ej: tomate, metro chef...)"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+            />
+          </div>
+          <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm whitespace-nowrap">
+            <span className="text-sm font-bold text-slate-500 uppercase tracking-tighter">Resultados: </span>
+            <span className="text-lg font-black text-emerald-600">{sortedAndFilteredProducts.length}</span>
+          </div>
         </div>
 
-        {/* Product Grid */}
-        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+        {/* Product Table */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-slate-900 text-white">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio Ref.</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alérgenos</th>
-                  <th className="px-6 py-3 text-right"></th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-widest w-12">#</th>
+                  <th 
+                    className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest cursor-pointer group hover:bg-slate-800 transition"
+                    onClick={() => handleSort('nombre')}
+                  >
+                    <div className="flex items-center gap-2">Nombre <SortIcon field="nombre" /></div>
+                  </th>
+                  <th 
+                    className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest cursor-pointer group hover:bg-slate-800 transition"
+                    onClick={() => handleSort('precio')}
+                  >
+                    <div className="flex items-center gap-2">Precio Ref. <SortIcon field="precio" /></div>
+                  </th>
+                  <th 
+                    className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest cursor-pointer group hover:bg-slate-800 transition"
+                    onClick={() => handleSort('unidad')}
+                  >
+                    <div className="flex items-center gap-2">Unidad <SortIcon field="unidad" /></div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest">Alérgenos</th>
+                  <th className="px-6 py-4 text-right"></th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProducts.map((product, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.nombre}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                      {product.precio ? `${product.precio.toFixed(2)} €` : '-'}
+              <tbody className="bg-white divide-y divide-gray-100">
+                {sortedAndFilteredProducts.map((product, idx) => (
+                  <tr key={idx} className="hover:bg-emerald-50/30 transition group">
+                    <td className="px-4 py-4 whitespace-nowrap text-xs font-bold text-gray-400 font-mono">
+                      {(idx + 1).toString().padStart(3, '0')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">{product.unidad}</td>
+                    <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-800 group-hover:text-emerald-700 transition-colors">
+                      {product.nombre}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-700 font-mono font-bold">
+                      {product.precio ? `${product.precio.toFixed(2)} €` : <span className="text-gray-300 font-normal italic">Sin precio</span>}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500 uppercase text-xs font-bold">
+                      {product.unidad}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
                         {product.alérgenos.length > 0 ? product.alérgenos.map(a => (
-                          <span key={a} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                          <span key={a} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-orange-100 text-orange-800 border border-orange-200">
                             {a}
                           </span>
-                        )) : <span className="text-gray-400 text-xs italic">Ninguno</span>}
+                        )) : <span className="text-gray-300 text-[10px] italic">No</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button onClick={() => handleDelete(product.nombre)} className="text-red-400 hover:text-red-600 transition">
+                      <button onClick={() => handleDelete(product.nombre)} className="text-gray-300 hover:text-red-600 transition p-2 hover:bg-red-50 rounded-full">
                         <Trash2 size={18} />
                       </button>
                     </td>
@@ -162,37 +235,47 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                 ))}
               </tbody>
             </table>
+            {sortedAndFilteredProducts.length === 0 && (
+              <div className="p-20 text-center flex flex-col items-center">
+                <div className="bg-slate-100 p-6 rounded-full text-slate-300 mb-4"><Search size={48} /></div>
+                <h3 className="text-lg font-bold text-slate-800">No se encontraron productos</h3>
+                <p className="text-slate-500">Intenta buscar con otros términos o añade uno nuevo.</p>
+              </div>
+            )}
           </div>
         </div>
       </main>
 
       {/* Add Product Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-200">
-            <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
-              <h3 className="text-lg font-bold">Añadir Nuevo Producto</h3>
-              <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-white">✕</button>
-            </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
+            <div className="bg-slate-800 text-white p-6 flex justify-between items-center">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Nombre del Producto</label>
+                <h3 className="text-lg font-bold">Añadir Nuevo Producto</h3>
+                <p className="text-xs text-slate-400">Introduce los datos del proveedor</p>
+              </div>
+              <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-white transition">✕</button>
+            </div>
+            <form onSubmit={handleSave} className="p-8 space-y-6">
+              <div>
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Nombre del Producto</label>
                 <input 
                   required
                   autoFocus
-                  className="mt-1 w-full p-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
                   value={newProd.nombre}
                   onChange={e => setNewProd({...newProd, nombre: e.target.value})}
-                  placeholder="Ej: Harina de Trigo"
+                  placeholder="Ej: Harina de Trigo Tradicional"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Precio (€)</label>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Precio (€)</label>
                   <input 
                     type="text"
                     inputMode="decimal"
-                    className="mt-1 w-full p-2 border rounded-md"
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
                     value={newProd.precioStr}
                     onKeyDown={handleDecimalKeyDown}
                     onChange={e => setNewProd({...newProd, precioStr: e.target.value})}
@@ -200,10 +283,10 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Unidad</label>
+                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Unidad</label>
                   <input 
                     required
-                    className="mt-1 w-full p-2 border rounded-md"
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
                     value={newProd.unidad}
                     onChange={e => setNewProd({...newProd, unidad: e.target.value})}
                     placeholder="Kg, L, Ud..."
@@ -212,10 +295,10 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Alérgenos</label>
-                <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-md border border-gray-200 max-h-40 overflow-y-auto">
+                <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Declaración de Alérgenos</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50 p-4 rounded-xl border border-gray-200 max-h-48 overflow-y-auto shadow-inner">
                   {ALL_ALLERGENS.map(allergen => (
-                    <label key={allergen} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 p-1 rounded">
+                    <label key={allergen} className="flex items-center gap-2 text-[11px] font-bold uppercase cursor-pointer hover:bg-white p-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
                       <input 
                         type="checkbox"
                         checked={newProd.alérgenos.includes(allergen)}
@@ -229,11 +312,11 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">
+                <button type="button" onClick={() => setShowAddForm(false)} className="px-6 py-3 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition">
                   Cancelar
                 </button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium">
-                  Guardar en Base de Datos
+                <button type="submit" className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition">
+                  Guardar Referencia
                 </button>
               </div>
             </form>
