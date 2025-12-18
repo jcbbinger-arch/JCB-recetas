@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, UserProfile, Menu } from './types';
-import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus } from './services/storage';
+import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus, getProducts } from './services/storage';
 import { RecipeForm } from './components/RecipeForm';
 import { RecipeDetail } from './components/RecipeDetail';
 import { ProductDatabase } from './components/ProductDatabase';
@@ -15,6 +15,7 @@ export default function App() {
   const [view, setView] = useState<ViewState>('list');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [dbProductCount, setDbProductCount] = useState(0);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -35,6 +36,8 @@ export default function App() {
     setMenus(getMenus());
     setUserProfile(getUserProfile());
     setCategories(getCategories());
+    // Actualizamos el conteo real de la base de datos de productos
+    setDbProductCount(getProducts().length);
   };
 
   const handleCreateNew = () => {
@@ -177,16 +180,9 @@ export default function App() {
     (r.author && r.author.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const totalIngredients = recipes.reduce((acc, r) => {
-    const ingredientsInRecipe = r.elaborations 
-      ? r.elaborations.reduce((eAcc, elab) => eAcc + elab.ingredients.length, 0)
-      : (r.ingredients?.length || 0);
-    return acc + ingredientsInRecipe;
-  }, 0);
-
   if (view === 'create' || view === 'edit') return (<div className="min-h-screen bg-slate-100 py-8 px-4"><RecipeForm initialRecipe={selectedRecipe} onSave={handleSaveForm} onCancel={() => setView('list')} /></div>);
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
-  if (view === 'products') return (<ProductDatabase onBack={() => setView('list')} />);
+  if (view === 'products') return (<ProductDatabase onBack={() => { setView('list'); refreshAll(); }} />);
   if (view === 'menus') return (<MenuManager menus={menus} onBack={() => setView('list')} onRefresh={refreshAll} />);
   if (view === 'ai_scan') return (<AIDigitalizer onBack={() => setView('list')} onSuccess={handleAIScanResult} />);
 
@@ -218,7 +214,7 @@ export default function App() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{totalIngredients}</p></div></div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Catálogo</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
           </div>
 
           {filteredRecipes.length === 0 ? (
@@ -263,7 +259,6 @@ export default function App() {
 
                {settingsTab === 'categories' && (
                  <div className="space-y-6">
-                    {/* Fix: Replaced HTML entity =&gt; with actual arrow operator => */}
                     <form onSubmit={handleAddCategory} className="flex gap-2"><input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow p-3 border rounded-lg" placeholder="Nueva categoría..." /><button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button></form>
                     <div className="space-y-2 border-t pt-4">
                        {categories.map(cat => (
