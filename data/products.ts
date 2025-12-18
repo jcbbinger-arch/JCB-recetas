@@ -3,13 +3,15 @@ export interface MasterProduct {
   id?: string;
   nombre: string;
   precio: number | null;
+  // Fix: Made 'unit' optional to resolve type errors in product lists and forms that use 'unidad' as the primary unit field.
+  unit?: string; 
   unidad: string;
   categoria?: string;
   alérgenos: string[];
 }
 
 export const MASTER_PRODUCTS: MasterProduct[] = [
-  // --- LISTA ANTERIOR (ACEITES, CONSERVAS, BÁSICOS) ---
+  // --- ACEITES Y BÁSICOS (FILTRADOS) ---
   { nombre: "ACEITE DE OLIVA SUAVE 1 L. (Inamar)", precio: 8.97, unidad: "Litro", alérgenos: [] },
   { nombre: "ACEITE DE OLIVA SUAVE 5 L. (Inamar)", precio: 8.87, unidad: "Litro", alérgenos: [] },
   { nombre: "ACEITE DE OLIVA V.E. Arbequina", precio: 8.03, unidad: "Litro", alérgenos: [] },
@@ -19,24 +21,17 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "ACEITE OLIVA VIRGEN EXTRA Coato 5l.", precio: 9.1, unidad: "Litro", alérgenos: [] },
   { nombre: "ACEITE SÉSAMO 1,7 l.", precio: 11.42, unidad: "Litro", alérgenos: ["Sésamo"] },
   { nombre: "ACEITE TRUFA BLANCA (250 ml) spray", precio: 9.5, unidad: "Botella", alérgenos: [] },
-  { nombre: "ACEITUNA PARTIDA", precio: null, unidad: "Kg", alérgenos: [] },
-  { nombre: "ACEITUNAS ALIÑADAS", precio: null, unidad: "Kg", alérgenos: [] },
   { nombre: "ACEITUNAS CUQUILLO (2,6 kg)", precio: 4.76, unidad: "Kg", alérgenos: [] },
   { nombre: "ACEITUNAS GORDALES", precio: 7.07, unidad: "Kg", alérgenos: [] },
-  { nombre: "ACEITUNAS NEGRAS C/H", precio: null, unidad: "Kg", alérgenos: [] },
   { nombre: "ACEITUNAS NEGRAS RODAJAS (330 g)", precio: 10.33, unidad: "Kg", alérgenos: [] },
   { nombre: "ACEITUNAS NEGRAS S/H (333 g)", precio: 4.95, unidad: "Kg", alérgenos: [] },
   { nombre: "ACEITUNAS RELLENAS ANCHOA (600 g)", precio: 6.9, unidad: "Kg", alérgenos: ["Pescado"] },
-  { nombre: "ACEITUNAS VERDES S/H", precio: null, unidad: "Kg", alérgenos: [] },
   { nombre: "ACELGA 5 hojas", precio: 0.9, unidad: "Manojo", alérgenos: [] },
   { nombre: "ACHICORIA / RADICHIO", precio: 2.05, unidad: "Pieza", alérgenos: [] },
   { nombre: "ACIDO Grifo cerveza (10 kg)", precio: 48.0, unidad: "Botella", alérgenos: ["Gluten"] },
   { nombre: "AGAR-AGAR (500 g)", precio: 56.04, unidad: "Kg", alérgenos: [] },
-  { nombre: "AGUA BOTELLIN 0,5 litro", precio: null, unidad: "Pack", alérgenos: [] },
-  { nombre: "AGUA BOTELLIN 20 cl", precio: null, unidad: "Pack", alérgenos: [] },
   { nombre: "AGUA BOTELLIN 33 cl x 24 unid. (Aro)", precio: 3.89, unidad: "Pack", alérgenos: [] },
   { nombre: "AGUA DE AZAHAR", precio: 13.33, unidad: "Litro", alérgenos: [] },
-  { nombre: "AGUA DE ROSAS", precio: null, unidad: "Litro", alérgenos: [] },
   { nombre: "AGUA FUENTE LIVIANA (C. 12 u. x 1l.)", precio: 6.4, unidad: "Caja", alérgenos: [] },
   { nombre: "AGUA GARRAFA (5 l.)", precio: 1.09, unidad: "Garrafa", alérgenos: [] },
   { nombre: "AGUA GARRAFA (8 l.)", precio: 1.25, unidad: "Garrafa", alérgenos: [] },
@@ -57,7 +52,6 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "ALBÚMINA (MERENGUE) Claraval", precio: 25.63, unidad: "Kg", alérgenos: ["Huevos"] },
   { nombre: "ALCACHOFA", precio: 6.5, unidad: "Kg", alérgenos: [] },
   { nombre: "ALCACHOFA CORAZÓN", precio: 7.22, unidad: "Kg", alérgenos: [] },
-  { nombre: "ALCACHOFA LATA", precio: null, unidad: "Kg", alérgenos: [] },
   { nombre: "ALCAPARRAS (1000 gne)", precio: 11.47, unidad: "Kg", alérgenos: [] },
   { nombre: "ALCAPARRÓN FINO (380 gne)", precio: 18.43, unidad: "Kg", alérgenos: [] },
   { nombre: "ALGA KOMBU Deshid. 100 g", precio: 3.5, unidad: "Paq.", alérgenos: [] },
@@ -65,9 +59,8 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "ALI-OLI RIOBA Biberón770 ml", precio: 7.28, unidad: "Kg", alérgenos: ["Huevos"] },
   { nombre: "ALMEJA CHIRLA", precio: 13.15, unidad: "Kg", alérgenos: ["Moluscos"] },
   { nombre: "ALMEJA JAPONICA", precio: 14.24, unidad: "Kg", alérgenos: ["Moluscos"] },
-  { nombre: "ALMENDRA COMUNA FRITA", precio: null, unidad: "Kg", alérgenos: ["Frutos de cáscara"] },
 
-  // --- NUEVA LISTA: FRUTAS Y VERDURAS ---
+  // --- FRUTAS Y VERDURAS ---
   { nombre: "METRO Premium micromezclum suave bandeja 60g", precio: 4.94, unidad: "Unidad", alérgenos: [] },
   { nombre: "METRO Chef lechuga Baby Leaf mixta bolsa 300g", precio: 2.55, unidad: "Unidad", alérgenos: [] },
   { nombre: "METRO Chef rúcula selvatica tarrina 450g", precio: 5.04, unidad: "Unidad", alérgenos: [] },
@@ -134,7 +127,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "METRO Chef Limón calibre 4/5 malla 2kg", precio: 4.05, unidad: "Unidad", alérgenos: [] },
   { nombre: "METRO Chef Naranja de zumo calibre 6/7 caja 12,5kg", precio: 11.08, unidad: "Unidad", alérgenos: [] },
 
-  // --- NUEVA LISTA: AVES Y CAZA ---
+  // --- AVES Y CAZA ---
   { nombre: "Hígado de pato desvenado congelado origen Francia 500 g", precio: 26.35, unidad: "Unidad", alérgenos: [] },
   { nombre: "Escalope de higado de pato congelado bolsa 1 kg", precio: 50.00, unidad: "Unidad", alérgenos: [] },
   { nombre: "Hígado de pato extra congelado pieza 450g", precio: 22.50, unidad: "Unidad", alérgenos: [] },
@@ -166,7 +159,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "Magret de pato precio kg", precio: 22.37, unidad: "Kg", alérgenos: [] },
   { nombre: "Pechuga de pollo bolsa 2,5kg precio kg", precio: 15.54, unidad: "Kg", alérgenos: [] },
 
-  // --- NUEVA LISTA: CERDO Y VACUNO ---
+  // --- CERDO Y VACUNO ---
   { nombre: "Costillar de cerdo al vacío precio kg", precio: 10.89, unidad: "Kg", alérgenos: [] },
   { nombre: "Carrilada de cerdo de cerdo al vacío precio kg", precio: 20.55, unidad: "Kg", alérgenos: [] },
   { nombre: "Carrillada sin hueso de cerdo congelado precio Kg", precio: 25.19, unidad: "Kg", alérgenos: [] },
@@ -199,7 +192,7 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "METRO Chef lomo bajo vaca 6-7 kg pz al vacio", precio: 138.22, unidad: "Kg", alérgenos: [] },
   { nombre: "METRO Chef solomillo vaca 2,4-2,8 kg kg al vacio", precio: 74.07, unidad: "Kg", alérgenos: [] },
 
-  // --- NUEVA LISTA: PESCADOS Y MARISCOS ---
+  // --- PESCADOS Y MARISCOS ---
   { nombre: "Vieira fresca contiene 4-5piezas/kg FAO 27 Atlantico Noreste", precio: 13.15, unidad: "Kg", alérgenos: ["Moluscos"] },
   { nombre: "Cabracho 1-2kg FAO 34 Atlántico Este Central", precio: 60.97, unidad: "Kg", alérgenos: ["Pescado"] },
   { nombre: "Galera 50-100g FAO 37 Mediterráneo Mar Negro,al peso", precio: 8.20, unidad: "Kg", alérgenos: ["Crustáceos"] },
@@ -231,5 +224,8 @@ export const MASTER_PRODUCTS: MasterProduct[] = [
   { nombre: "Salmonete 50-100g FAO 37 Mediterráneo Mar Negro", precio: 8.75, unidad: "Kg", alérgenos: ["Pescado"] },
   { nombre: "METRO Chef Lubina de cría limpia 0,4-0,6 kg", precio: 6.30, unidad: "Kg", alérgenos: ["Pescado"] },
   { nombre: "METRO Chef Rodaballo 1,5-2kg de Cria origen España", precio: 34.63, unidad: "Kg", alérgenos: ["Pescado"] },
-  { nombre: "SALMON 5-6KG DE CRIA SIN MANIPULAR", precio: 60.20, unidad: "Kg", alérgenos: ["Pescado"] }
+  { nombre: "SALMON 5-6KG DE CRIA SIN MANIPULAR", precio: 60.20, unidad: "Kg", alérgenos: ["Pescado"] },
+  { nombre: "METRO Chef ostra claire Nr. 2 de Cría origen Francia caja 18 pzas (1470 g aprox)", precio: 18.59, unidad: "unidad", alérgenos: ["Moluscos"] },
+  { nombre: "makro Chef mejillón de Cría 30-40piezas/ Kg (1000 g aprox)", precio: 3.25, unidad: "unidad", alérgenos: ["Moluscos"] },
+  { nombre: "makro Chef Almeja japónica 60-80pzas/ Kg FAO 27 Mallas 1 Kg", precio: 20.30, unidad: "unidad", alérgenos: ["Moluscos"] }
 ];
