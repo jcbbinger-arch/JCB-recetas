@@ -1,5 +1,5 @@
 
-import React, { ReactNode, ErrorInfo, Component } from 'react';
+import React, { ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -13,13 +13,16 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// Fix: Explicitly extending Component from the react import ensures that props and state are correctly inherited and typed via the provided generics.
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Fix: Initializing state as a class field with explicit typing ensures compatibility with the generic State parameter.
-  public state: ErrorBoundaryState = { 
-    hasError: false, 
-    error: null 
-  };
+// Fix: Using React.Component explicitly helps TypeScript correctly resolve the inherited properties like 'this.props' and 'this.state' which can sometimes be ambiguous when using destructured imports in certain environments.
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Fix: Adding an explicit constructor that calls super(props) ensures the base React.Component is correctly initialized with the generic types, making 'this.props' available.
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { 
+      hasError: false, 
+      error: null 
+    };
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -29,7 +32,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     console.error("React Error Boundary Caught:", error, errorInfo);
   }
 
-  render() {
+  render(): ReactNode {
     // Check if the application state has an error
     if (this.state.hasError) {
       return (
@@ -48,7 +51,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         </div>
       );
     }
-    // Fix: Accessing children via this.props is now properly recognized by TypeScript as part of the Component inheritance.
+    // Fix: With the explicit inheritance from React.Component and the constructor, this.props is now correctly recognized by the TypeScript compiler.
     return this.props.children;
   }
 }
