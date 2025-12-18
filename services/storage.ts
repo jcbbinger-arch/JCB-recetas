@@ -17,6 +17,36 @@ export const generateId = (): string => {
   return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
+// --- CALCULATIONS ---
+export const calculateRecipeCost = (recipe: Recipe): { total: number; perYield: number } => {
+  const products = getProducts();
+  let totalCost = 0;
+
+  recipe.elaborations.forEach(elab => {
+    elab.ingredients.forEach(ing => {
+      const product = products.find(p => p.nombre.toLowerCase() === ing.name.toLowerCase());
+      if (product && product.precio) {
+        let quantity = typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity as string);
+        if (isNaN(quantity)) quantity = 0;
+
+        let unitFactor = 1;
+        const ingUnit = (ing.unit || '').toLowerCase();
+        const prodUnit = (product.unidad || '').toLowerCase();
+
+        // Conversión básica de unidades
+        if ((ingUnit === 'g' || ingUnit === 'gr') && (prodUnit === 'kg' || prodUnit === 'kilo')) unitFactor = 0.001;
+        if ((ingUnit === 'ml') && (prodUnit === 'l' || prodUnit === 'litro')) unitFactor = 0.001;
+        if ((ingUnit === 'cl') && (prodUnit === 'l' || prodUnit === 'litro')) unitFactor = 0.01;
+
+        totalCost += quantity * unitFactor * product.precio;
+      }
+    });
+  });
+
+  const perYield = recipe.yieldQuantity > 0 ? totalCost / recipe.yieldQuantity : 0;
+  return { total: totalCost, perYield };
+};
+
 // --- MENUS ---
 export const getMenus = (): Menu[] => {
   try {
@@ -120,13 +150,9 @@ export const getProducts = (): MasterProduct[] => {
     const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
     let storedProducts: MasterProduct[] = data ? JSON.parse(data) : [];
     
-    // Usamos un Map para evitar duplicados por nombre de forma eficiente
     const productMap = new Map<string, MasterProduct>();
     
-    // 1. Cargar productos maestros (Listado profesional)
     MASTER_PRODUCTS.forEach(p => productMap.set(p.nombre.toLowerCase(), p));
-    
-    // 2. Cargar productos guardados por el usuario (sobreescriben si coinciden)
     storedProducts.forEach(p => productMap.set(p.nombre.toLowerCase(), p));
     
     return Array.from(productMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
