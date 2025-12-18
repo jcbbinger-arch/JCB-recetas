@@ -7,7 +7,7 @@ import { RecipeDetail } from './components/RecipeDetail';
 import { ProductDatabase } from './components/ProductDatabase';
 import { MenuManager } from './components/MenuManager';
 import { AIDigitalizer } from './components/AIDigitalizer';
-import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag, BookOpen, Layers, Sparkles } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, User, ImageIcon, Tag, Layers, Sparkles } from 'lucide-react';
 
 type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus' | 'ai_scan';
 
@@ -27,22 +27,21 @@ export default function App() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
 
+  // Sincronización inicial
   useEffect(() => {
     refreshAll();
   }, []);
 
   const refreshAll = () => {
-    const loadedRecipes = getRecipes();
-    const loadedMenus = getMenus();
-    const loadedProfile = getUserProfile();
-    const loadedCategories = getCategories();
-    const loadedProducts = getProducts();
-
-    setRecipes(loadedRecipes);
-    setMenus(loadedMenus);
-    setUserProfile(loadedProfile);
-    setCategories(loadedCategories);
-    setDbProductCount(loadedProducts.length);
+    try {
+      setRecipes(getRecipes());
+      setMenus(getMenus());
+      setUserProfile(getUserProfile());
+      setCategories(getCategories());
+      setDbProductCount(getProducts().length);
+    } catch (err) {
+      console.error("Error al refrescar datos:", err);
+    }
   };
 
   const handleCreateNew = () => {
@@ -53,7 +52,7 @@ export default function App() {
       category: getCategories()[0] || 'General',
       sourceUrl: '',
       elaborations: [
-          { id: 'default_elab_' + Date.now(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
+          { id: 'elab_' + Date.now(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
       ],
       yieldQuantity: 4,
       yieldUnit: 'raciones',
@@ -155,7 +154,7 @@ export default function App() {
   };
 
   const handleDeleteCategory = (cat: string) => {
-    if (window.confirm(`¿Eliminar categoría "${cat}"? Las recetas existentes no se verán afectadas.`)) {
+    if (window.confirm(`¿Eliminar categoría "${cat}"?`)) {
       deleteCategory(cat);
       setCategories(getCategories());
     }
@@ -181,10 +180,10 @@ export default function App() {
 
   const filteredRecipes = recipes.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.author && r.author.toLowerCase().includes(searchTerm.toLowerCase()))
+    r.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Vistas Condicionales
   if (view === 'create' || view === 'edit') return (<div className="min-h-screen bg-slate-100 py-8 px-4"><RecipeForm initialRecipe={selectedRecipe} onSave={handleSaveForm} onCancel={() => setView('list')} /></div>);
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
   if (view === 'products') return (<ProductDatabase onBack={() => { setView('list'); refreshAll(); }} />);
@@ -219,7 +218,7 @@ export default function App() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Catálogo</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
           </div>
 
           {filteredRecipes.length === 0 ? (
@@ -265,18 +264,12 @@ export default function App() {
                {settingsTab === 'categories' && (
                  <div className="space-y-6">
                     <form onSubmit={handleAddCategory} className="flex gap-2">
-                        <input 
-                            type="text" 
-                            value={newCategoryName} 
-                            onChange={(e) => setNewCategoryName(e.target.value)} 
-                            className="flex-grow p-3 border rounded-lg" 
-                            placeholder="Nueva categoría..." 
-                        />
-                        <button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button>
+                        <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow p-3 border rounded-lg shadow-sm" placeholder="Nueva categoría..." />
+                        <button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold hover:bg-emerald-500 transition">Añadir</button>
                     </form>
-                    <div className="space-y-2 border-t pt-4">
+                    <div className="space-y-2 border-t pt-4 max-h-60 overflow-y-auto pr-1">
                        {categories.map(cat => (
-                         <div key={cat} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg group">
+                         <div key={cat} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg group border border-transparent hover:border-slate-200 transition">
                             <span className="font-medium text-slate-700">{cat}</span>
                             <button onClick={() => handleDeleteCategory(cat)} className="text-red-400 opacity-0 group-hover:opacity-100 hover:text-red-600 transition"><Trash2 size={16} /></button>
                          </div>
@@ -287,8 +280,8 @@ export default function App() {
 
                {settingsTab === 'backup' && (
                  <div className="space-y-3">
-                   <button onClick={createFullBackup} className="flex items-center justify-between w-full p-4 border rounded-xl hover:border-emerald-500 transition"><div className="text-left font-bold">Descargar Copia</div><Download size={20} /></button>
-                   <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-between w-full p-4 border rounded-xl hover:border-blue-500 transition"><div className="text-left font-bold">Restaurar Copia</div><Upload size={20} /></button>
+                   <button onClick={createFullBackup} className="flex items-center justify-between w-full p-4 border rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition"><div className="text-left font-bold">Descargar Copia</div><Download size={20} /></button>
+                   <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-between w-full p-4 border rounded-xl hover:border-blue-500 hover:bg-blue-50 transition"><div className="text-left font-bold">Restaurar Copia</div><Upload size={20} /></button>
                    <input type="file" accept=".json" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                  </div>
                )}
