@@ -18,6 +18,7 @@ export const generateId = (): string => {
 };
 
 // --- MENUS ---
+
 export const getMenus = (): Menu[] => {
   try {
     const data = localStorage.getItem(MENU_STORAGE_KEY);
@@ -41,6 +42,7 @@ export const deleteMenu = (id: string): void => {
 };
 
 // --- CATEGORIES ---
+
 export const getCategories = (): string[] => {
   try {
     const data = localStorage.getItem(CATEGORY_STORAGE_KEY);
@@ -71,6 +73,7 @@ export const deleteCategory = (category: string): void => {
 };
 
 // --- USER PROFILE ---
+
 export const getUserProfile = (): UserProfile => {
   try {
     const data = localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -85,17 +88,30 @@ export const saveUserProfile = (profile: UserProfile): void => {
 };
 
 // --- RECIPES ---
+
 export const getRecipes = (): Recipe[] => {
   try {
     const data = localStorage.getItem(RECIPE_STORAGE_KEY);
     if (!data || data === "undefined" || data === "null") return [];
-    const rawRecipes = JSON.parse(data);
+    
+    let rawRecipes: any;
+    try {
+      rawRecipes = JSON.parse(data);
+    } catch (e) {
+      return [];
+    }
+
     if (!Array.isArray(rawRecipes)) return [];
-    return rawRecipes.map((r: any) => ({
-      ...r,
-      id: r.id || generateId(),
-      elaborations: r.elaborations || [{ id: generateId(), name: 'Elaboración Principal', ingredients: r.ingredients || [], instructions: r.instructions || '', photos: [] }]
-    }));
+    
+    return rawRecipes.map((r: any) => {
+      if (!r || typeof r !== 'object') return null;
+      let updatedRecipe = { ...r };
+      updatedRecipe.id = updatedRecipe.id || generateId();
+      if (!updatedRecipe.elaborations || updatedRecipe.elaborations.length === 0) {
+        updatedRecipe.elaborations = [{ id: generateId(), name: 'Elaboración Principal', ingredients: r.ingredients || [], instructions: r.instructions || '', photos: [] }];
+      }
+      return updatedRecipe;
+    }).filter(Boolean) as Recipe[];
   } catch (error) {
     return [];
   }
@@ -115,62 +131,55 @@ export const deleteRecipe = (id: string): void => {
 };
 
 // --- PRODUCTS ---
+
 export const getProducts = (): MasterProduct[] => {
   try {
     const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
     let storedProducts: MasterProduct[] = data ? JSON.parse(data) : [];
-    
-    // Usamos un Map para evitar duplicados de forma eficiente por nombre
-    const productMap = new Map<string, MasterProduct>();
-    
-    // 1. Cargar productos maestros (tu gran listado)
-    MASTER_PRODUCTS.forEach(p => productMap.set(p.nombre.toLowerCase(), p));
-    
-    // 2. Sobrescribir con productos guardados localmente (permitir ediciones)
-    storedProducts.forEach(p => productMap.set(p.nombre.toLowerCase(), p));
-    
-    return Array.from(productMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const mergedProducts = [...storedProducts];
+    MASTER_PRODUCTS.forEach(master => {
+      if (!mergedProducts.some(p => p.nombre.toLowerCase() === master.nombre.toLowerCase())) {
+        mergedProducts.push(master);
+      }
+    });
+    return mergedProducts.sort((a, b) => a.nombre.localeCompare(b.nombre));
   } catch (error) {
     return MASTER_PRODUCTS;
   }
 };
 
 export const saveProduct = (product: MasterProduct): void => {
-  try {
-    const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
-    let stored: MasterProduct[] = data ? JSON.parse(data) : [];
-    const index = stored.findIndex(p => p.nombre.toLowerCase() === product.nombre.toLowerCase());
-    if (index >= 0) stored[index] = product;
-    else stored.push(product);
-    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(stored));
-  } catch (e) {
-    console.error("Error saving product", e);
-  }
+  const products = getProducts();
+  const existingIndex = products.findIndex(p => p.nombre.toLowerCase() === product.nombre.toLowerCase());
+  if (existingIndex >= 0) products[existingIndex] = product;
+  else products.push(product);
+  localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(products));
 };
 
 export const deleteProduct = (name: string): void => {
-  try {
-    const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
-    let stored: MasterProduct[] = data ? JSON.parse(data) : [];
-    stored = stored.filter(p => p.nombre.toLowerCase() !== name.toLowerCase());
-    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(stored));
-  } catch (e) {}
+  const products = getProducts().filter(p => p.nombre !== name);
+  localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(products));
 };
 
 export const findProductByName = (name: string): MasterProduct | undefined => {
   return getProducts().find(p => p.nombre.toLowerCase() === name.toLowerCase());
 };
 
-// --- BACKUP ---
+// --- BACKUP & EXPORT ---
+
+// Fix: Implementation of exportRecipeToJSON to resolve missing export error in App.tsx
 export const exportRecipeToJSON = (recipe: Recipe): void => {
   const dataStr = JSON.stringify(recipe, null, 2);
   const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-  const link = document.createElement('a');
-  link.setAttribute('href', dataUri);
-  link.setAttribute('download', `receta_${recipe.name.replace(/\s+/g, '_')}.json`);
-  link.click();
+  const exportFileDefaultName = `receta_${recipe.name.replace(/\s+/g, '_') || 'sin_nombre'}.json`;
+
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
 };
 
+// Fix: Implementation of createFullBackup to resolve missing export error in App.tsx
 export const createFullBackup = (): void => {
   const backup = {
     recipes: getRecipes(),
@@ -179,12 +188,15 @@ export const createFullBackup = (): void => {
     menus: getMenus(),
     profile: getUserProfile(),
   };
+
   const dataStr = JSON.stringify(backup, null, 2);
   const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-  const link = document.createElement('a');
-  link.setAttribute('href', dataUri);
-  link.setAttribute('download', `backup_kitchen_${new Date().toISOString().split('T')[0]}.json`);
-  link.click();
+  const exportFileDefaultName = `backup_kitchen_manager_${new Date().toISOString().split('T')[0]}.json`;
+
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
 };
 
 export const restoreFromBackup = (jsonString: string): { success: boolean; message: string } => {
@@ -197,6 +209,6 @@ export const restoreFromBackup = (jsonString: string): { success: boolean; messa
     if (data.profile) saveUserProfile(data.profile);
     return { success: true, message: "Restauración completada." };
   } catch (e) {
-    return { success: false, message: "Archivo inválido." };
+    return { success: false, message: "Archivo corrupto." };
   }
 };
