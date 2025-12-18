@@ -178,30 +178,26 @@ export const getProducts = (): MasterProduct[] => {
     
     if (data) {
       storedProducts = JSON.parse(data);
-    } else {
-      // Si no hay datos, inicializamos con los maestros
-      localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(MASTER_PRODUCTS));
-      return MASTER_PRODUCTS;
     }
 
-    // LÓGICA DE INTEGRACIÓN Y SUSTITUCIÓN:
-    // Recorremos los MASTER_PRODUCTS para asegurar que estén en la lista y actualizados.
+    // LÓGICA DE SINCRONIZACIÓN MEJORADA:
+    // Solo inyectamos productos maestros si no están ya en la base de datos del usuario.
+    // Esto respeta las ediciones manuales (precios, unidades, alérgenos) del usuario.
     const mergedProducts = [...storedProducts];
     
     MASTER_PRODUCTS.forEach(master => {
-      const existingIdx = mergedProducts.findIndex(p => p.nombre.toLowerCase() === master.nombre.toLowerCase());
-      if (existingIdx >= 0) {
-        // Sustituimos por la versión maestra (precios y unidades actualizadas)
-        mergedProducts[existingIdx] = master;
-      } else {
-        // Añadimos si no existe
+      const exists = mergedProducts.some(p => p.nombre.toLowerCase() === master.nombre.toLowerCase());
+      if (!exists) {
         mergedProducts.push(master);
       }
     });
 
-    // Guardamos la mezcla de nuevo para persistir los cambios del maestro
-    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(mergedProducts));
-    return mergedProducts;
+    // Guardamos si hubo cambios por inyección de maestros
+    if (mergedProducts.length !== storedProducts.length) {
+      localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(mergedProducts));
+    }
+    
+    return mergedProducts.sort((a, b) => a.nombre.localeCompare(b.nombre));
     
   } catch (error) {
     console.error("Error sync products", error);
