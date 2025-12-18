@@ -6,9 +6,10 @@ import { RecipeForm } from './components/RecipeForm';
 import { RecipeDetail } from './components/RecipeDetail';
 import { ProductDatabase } from './components/ProductDatabase';
 import { MenuManager } from './components/MenuManager';
-import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag, BookOpen, Layers } from 'lucide-react';
+import { AIDigitalizer } from './components/AIDigitalizer';
+import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag, BookOpen, Layers, Sparkles } from 'lucide-react';
 
-type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus';
+type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus' | 'ai_scan';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('list');
@@ -58,6 +59,38 @@ export default function App() {
       }
     };
     setSelectedRecipe(recipeWithProfile as Recipe); 
+    setView('create');
+  };
+
+  const handleAIScanResult = (draft: Partial<Recipe>) => {
+    const profile = getUserProfile();
+    const finalDraft: Recipe = {
+      ...draft,
+      id: 'draft_' + Date.now(),
+      author: draft.author || profile.authorName || '',
+      logo: draft.logo || profile.logo || '',
+      category: draft.category || getCategories()[0] || 'General',
+      yieldQuantity: draft.yieldQuantity || 4,
+      yieldUnit: draft.yieldUnit || 'raciones',
+      processPhotos: [],
+      elaborations: (draft.elaborations || []).map(e => ({
+        ...e,
+        id: 'elab_' + Math.random().toString(36).substr(2, 9),
+        ingredients: e.ingredients || [],
+        instructions: e.instructions || '',
+        photos: []
+      })),
+      serviceDetails: {
+        presentation: draft.serviceDetails?.presentation || '',
+        servingTemp: draft.serviceDetails?.servingTemp || '',
+        cutlery: draft.serviceDetails?.cutlery || '',
+        passTime: draft.serviceDetails?.passTime || '',
+        serviceType: draft.serviceDetails?.serviceType || 'A la Americana (Emplatado)',
+        clientDescription: draft.serviceDetails?.clientDescription || ''
+      }
+    } as Recipe;
+
+    setSelectedRecipe(finalDraft);
     setView('create');
   };
 
@@ -155,6 +188,7 @@ export default function App() {
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
   if (view === 'products') return (<ProductDatabase onBack={() => setView('list')} />);
   if (view === 'menus') return (<MenuManager menus={menus} onBack={() => setView('list')} onRefresh={refreshAll} />);
+  if (view === 'ai_scan') return (<AIDigitalizer onBack={() => setView('list')} onSuccess={handleAIScanResult} />);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
@@ -168,6 +202,7 @@ export default function App() {
             <button onClick={() => setView('list')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'list' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutGrid size={20} />Dashboard</button>
             <button onClick={() => setView('menus')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'menus' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Layers size={20} />Menús y Eventos</button>
             <button onClick={() => setView('products')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Database size={20} />Base de Datos</button>
+            <button onClick={() => setView('ai_scan')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'ai_scan' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-400 hover:bg-emerald-900/30'}`}><Sparkles size={20} />Scanner IA</button>
             <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Settings size={20} />Configuración</button>
           </nav>
           <div className="p-4 border-t border-slate-800"><button onClick={handleCreateNew} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"><Plus size={20} />Nueva Ficha</button></div>
@@ -228,6 +263,7 @@ export default function App() {
 
                {settingsTab === 'categories' && (
                  <div className="space-y-6">
+                    {/* Fix: Replaced HTML entity =&gt; with actual arrow operator => */}
                     <form onSubmit={handleAddCategory} className="flex gap-2"><input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow p-3 border rounded-lg" placeholder="Nueva categoría..." /><button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button></form>
                     <div className="space-y-2 border-t pt-4">
                        {categories.map(cat => (
