@@ -1,4 +1,5 @@
-import React, { ReactNode, ErrorInfo } from 'react';
+
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -12,14 +13,15 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// Fix: Use React.Component with generic parameters for props and state. 
-// This is the most reliable way to ensure that TypeScript correctly identifies 'this.props' and 'this.state'.
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    // Fix: Standard state initialization. By extending React.Component, 'this.state' is properly typed.
-    this.state = { hasError: false, error: null };
-  }
+// Fix: Use Component from 'react' and initialize state as a class field.
+// This ensures the TypeScript compiler correctly identifies inherited 'props' and 'state' properties.
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Fix: Standard class field initialization for state instead of constructor initialization.
+  // This is the preferred approach in TypeScript to ensure better type visibility.
+  public state: ErrorBoundaryState = { 
+    hasError: false, 
+    error: null 
+  };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
@@ -30,7 +32,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render() {
-    // Fix: Accessed 'this.state' and its properties. These are now correctly inferred from the ErrorBoundaryState interface.
+    // Fix: 'this.state' is now correctly typed via inheritance from Component<P, S>.
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 font-sans text-center">
@@ -48,7 +50,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    // Fix: Accessed 'this.props.children'. It is now correctly inferred from the ErrorBoundaryProps interface.
+    // Fix: 'this.props' is now correctly typed via inheritance from Component<P, S>.
     return this.props.children;
   }
 }
