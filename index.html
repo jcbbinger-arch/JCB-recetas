@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -33,11 +34,42 @@
     </script>
     <style>
       @media print {
-        @page { margin: 0.5cm; size: A4; }
-        body { -webkit-print-color-adjust: exact; }
+        @page { 
+          margin: 1cm 1.5cm 1.5cm 1.5cm; 
+          size: A4; 
+        }
+        body { 
+          -webkit-print-color-adjust: exact; 
+          counter-reset: page;
+        }
         .no-print { display: none !important; }
         .print-break-inside-avoid { break-inside: avoid; }
+        
+        /* Sistema de Numeración de Páginas */
+        .print-footer {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 1cm;
+          display: flex;
+          justify-content: bween;
+          align-items: center;
+          border-top: 1px solid #e2e8f0;
+          font-size: 9pt;
+          color: #64748b;
+          font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        }
+        
+        .page-number::after {
+          counter-increment: page;
+          content: "Página " counter(page);
+        }
       }
+      
+      /* Ocultar pie de página en pantalla */
+      .print-footer { display: none; }
+
       /* Loading Spinner */
       .loading-initial {
         display: flex;
@@ -72,7 +104,6 @@
         <p>Iniciando aplicación...</p>
       </div>
     </div>
-    <!-- Absolute path to ensure Vite finds the entry point -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

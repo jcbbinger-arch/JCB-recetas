@@ -1,5 +1,5 @@
 
-import React, { Component, ReactNode, ErrorInfo } from 'react';
+import React, { ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -13,11 +13,16 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// Fix: Explicitly importing and extending Component from 'react' with defined generic interfaces 
-// ensures that TypeScript correctly identifies 'this.props' and 'this.state' as members of the class.
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Fix: Explicit constructor with super(props) ensures the base class is properly initialized 
-  // with the provided props and state generic types.
+// Fix: Extending React.Component and declaring state/props properties to ensure TypeScript 
+// correctly identifies 'this.props' and 'this.state' as members of the class.
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Fix: Explicitly declare the state and props properties to resolve compilation errors 
+  // where these members are not recognized on the class instance.
+  public state: ErrorBoundaryState;
+  public props: ErrorBoundaryProps;
+
+  // Fix: Explicit constructor with super(props) and state initialization ensures 
+  // the base class is properly initialized and state is typed.
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { 
@@ -35,7 +40,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   render(): ReactNode {
-    // Fix: Accessing 'this.state' now correctly resolves through the inherited Component class.
+    // Fix: Accessing 'this.state' now correctly resolves through the declared property.
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 font-sans text-center">
@@ -53,7 +58,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         </div>
       );
     }
-    // Fix: Accessing 'this.props' now correctly resolves through the inherited Component class.
+    // Fix: Accessing 'this.props' now correctly resolves through the declared property.
     return this.props.children;
   }
 }

@@ -1,7 +1,7 @@
 
 export interface Ingredient {
   name: string;
-  quantity: number;
+  quantity: number | string; // Permitimos string para manejar decimales en edición sin perder el punto
   unit: string;
 }
 

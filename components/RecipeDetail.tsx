@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Recipe } from '../types';
-import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon, ConciergeBell, ExternalLink } from 'lucide-react';
+import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon, ConciergeBell, ExternalLink, Scale } from 'lucide-react';
 import { findProductByName } from '../services/storage';
 
 interface RecipeDetailProps {
@@ -14,7 +14,6 @@ const ALL_ALLERGENS_LIST = [
   'Frutos de cáscara', 'Apio', 'Mostaza', 'Sésamo', 'Sulfitos', 'Altramuces', 'Moluscos'
 ];
 
-// Re-using the dictionary for display purposes
 const SERVICE_TYPES_DESC: Record<string, string> = {
   "A la Americana (Emplatado)": "El plato sale terminado y decorado de cocina. El camarero lo sirve por la derecha.",
   "A la Inglesa": "Comida en fuente. El camarero sirve al cliente por la izquierda usando pinza.",
@@ -25,12 +24,17 @@ const SERVICE_TYPES_DESC: Record<string, string> = {
 };
 
 export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) => {
-  
+  const [desiredYield, setDesiredYield] = useState<number>(recipe.yieldQuantity);
+
   const handlePrint = () => {
     window.print();
   };
 
-  // Calculate allergens from ALL ingredients in ALL elaborations
+  const scalingFactor = useMemo(() => {
+    if (!recipe.yieldQuantity || !desiredYield) return 1;
+    return desiredYield / recipe.yieldQuantity;
+  }, [recipe.yieldQuantity, desiredYield]);
+
   const recipeAllergens = useMemo(() => {
     const allergensSet = new Set<string>();
     const elaborations = recipe.elaborations || [];
@@ -47,28 +51,60 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
     return Array.from(allergensSet);
   }, [recipe]);
 
+  const formatQuantity = (qty: number | string) => {
+    const num = typeof qty === 'number' ? qty : parseFloat(qty);
+    if (isNaN(num)) return qty;
+    
+    const scaled = num * scalingFactor;
+    // Si es un número entero después del escalado, lo mostramos sin decimales
+    if (Number.isInteger(scaled)) return scaled.toString();
+    // Si no, mostramos hasta 3 decimales (importante para 0.583g)
+    return parseFloat(scaled.toFixed(3)).toString();
+  };
+
   const serviceDesc = SERVICE_TYPES_DESC[recipe.serviceDetails.serviceType];
+  const currentDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   return (
-    <div className="max-w-[210mm] mx-auto bg-white shadow-2xl print:shadow-none min-h-screen animate-in fade-in duration-500">
+    <div className="max-w-[210mm] mx-auto bg-white shadow-2xl print:shadow-none min-h-screen animate-in fade-in duration-500 relative">
       
-      <div className="no-print bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-lg">
-        <button onClick={onBack} className="flex items-center gap-2 text-slate-300 hover:text-white transition font-medium">
-          <ArrowLeft size={20} /> Volver
-        </button>
+      {/* Sticky Header with Scaling Control */}
+      <div className="no-print bg-slate-900 text-white p-4 flex flex-col md:flex-row justify-between items-center sticky top-0 z-50 shadow-lg gap-4">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="flex items-center gap-2 text-slate-300 hover:text-white transition font-medium">
+            <ArrowLeft size={20} /> Volver
+          </button>
+          <div className="h-6 w-px bg-slate-700 hidden md:block"></div>
+          <div className="flex items-center gap-3 bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+            <Users size={18} className="text-emerald-400" />
+            <span className="text-xs font-bold uppercase text-slate-400">Raciones:</span>
+            <input 
+              type="number" 
+              value={desiredYield} 
+              onChange={(e) => setDesiredYield(Math.max(1, parseFloat(e.target.value) || 1))}
+              className="bg-transparent text-white font-bold w-16 outline-none border-b border-emerald-500 text-center"
+            />
+          </div>
+        </div>
+
         <div className="flex gap-4">
+            {scalingFactor !== 1 && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-900/30 text-amber-400 rounded-lg text-xs font-bold animate-pulse">
+                <Scale size={14} /> Escalado x{scalingFactor.toFixed(2)}
+              </div>
+            )}
             {recipe.sourceUrl && (
                 <a 
                     href={recipe.sourceUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/30 transition"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/30 transition text-sm"
                 >
-                    <ExternalLink size={18} /> Ver Original
+                    <ExternalLink size={16} /> Ver Original
                 </a>
             )}
-            <button onClick={handlePrint} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-bold shadow-lg shadow-emerald-900/30 transition">
-                <Printer size={20} /> Imprimir / PDF
+            <button onClick={handlePrint} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-bold shadow-lg shadow-emerald-900/30 transition text-sm">
+                <Printer size={18} /> Imprimir Ficha
             </button>
         </div>
       </div>
@@ -87,6 +123,11 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                           <User size={12} /> {recipe.author}
                       </span>
                   )}
+                  {scalingFactor !== 1 && (
+                    <span className="bg-amber-100 text-amber-800 px-3 py-1 text-xs font-black uppercase tracking-wider rounded-full border border-amber-200">
+                      Calculado para {desiredYield} {recipe.yieldUnit}
+                    </span>
+                  )}
               </div>
               <h1 className="text-5xl font-serif font-bold text-slate-900 leading-tight mb-2">{recipe.name}</h1>
               <p className="text-lg text-slate-500 italic font-serif border-l-4 border-emerald-500 pl-3">
@@ -94,7 +135,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
               </p>
            </div>
            
-           {/* Logo */}
            <div className="w-32 h-32 flex-shrink-0 ml-4">
               {recipe.logo ? (
                   <img src={recipe.logo} alt="Logo" className="w-full h-full object-contain" />
@@ -108,10 +148,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
 
         <div className="grid grid-cols-12 gap-8">
           
-          {/* Left Column: Photo & Ingredients */}
           <div className="col-span-5 print:col-span-5 flex flex-col gap-8">
-             
-             {/* Photo (Square) */}
              <div className="w-full aspect-square bg-gray-100 border border-gray-200 rounded-lg overflow-hidden shadow-sm print:border-gray-400 relative">
                 {recipe.photo ? (
                   <img src={recipe.photo} alt={recipe.name} className="w-full h-full object-cover" />
@@ -123,10 +160,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                 )}
              </div>
 
-             {/* Ingredients List */}
-             <div>
+             <div className="print-break-inside-avoid">
                 <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4 flex items-center gap-2">
-                   <Utensils size={18} /> Escandallo
+                   <Utensils size={18} /> Escandallo Escalado
                 </h2>
                 
                 {recipe.elaborations.map((elab, idx) => (
@@ -144,7 +180,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                             {elab.ingredients.map((ing, i) => (
                             <tr key={i} className={i % 2 === 0 ? 'bg-slate-50/50 print:bg-transparent' : ''}>
                                 <td className="py-1.5 pl-2 font-medium text-slate-700">{ing.name}</td>
-                                <td className="py-1.5 text-right text-slate-600 font-mono">{ing.quantity}</td>
+                                <td className="py-1.5 text-right text-slate-900 font-mono font-bold">
+                                  {formatQuantity(ing.quantity)}
+                                </td>
                                 <td className="py-1.5 pl-2 text-xs text-slate-400 uppercase">{ing.unit}</td>
                             </tr>
                             ))}
@@ -152,14 +190,16 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                         </table>
                     </div>
                 ))}
+                {scalingFactor !== 1 && (
+                  <p className="text-[10px] text-slate-400 italic mt-2 border-t pt-2">
+                    * Cantidades ajustadas automáticamente mediante factor {scalingFactor.toFixed(4)}.
+                  </p>
+                )}
              </div>
           </div>
 
-          {/* Right Column: Instructions, Allergens, Presentation */}
           <div className="col-span-7 print:col-span-7 flex flex-col gap-6">
-            
-            {/* Allergens Matrix */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 print:bg-white print:border-gray-300">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 print:bg-white print:border-gray-300 print-break-inside-avoid">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center flex items-center justify-center gap-2">
                  <AlertTriangle size={12} /> Declaración de Alérgenos (Global)
               </h3>
@@ -182,7 +222,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
               </div>
             </div>
 
-            {/* Instructions */}
             <div>
               <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4">
                 Elaboración
@@ -198,7 +237,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                         {elab.instructions || "Sin instrucciones definidas."}
                       </div>
 
-                      {/* ELABORATION PHOTOS */}
                       {elab.photos && elab.photos.length > 0 && (
                           <div className="grid grid-cols-3 gap-2 mb-3">
                               {elab.photos.map((photo, pIdx) => (
@@ -212,13 +250,12 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
               ))}
             </div>
             
-            {/* Gallery */}
             {recipe.processPhotos && recipe.processPhotos.length > 0 && (
-               <div className="mt-4 border-t border-dashed border-gray-300 pt-4">
+               <div className="mt-4 border-t border-dashed border-gray-300 pt-4 print-break-inside-avoid">
                  <h3 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><ImageIcon size={12}/> Galería General</h3>
                  <div className="grid grid-cols-4 gap-2">
                     {recipe.processPhotos.map((photo, idx) => (
-                      <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-200 break-inside-avoid">
+                      <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
                          <img src={photo} className="w-full h-full object-cover" alt={`Paso ${idx}`} />
                       </div>
                     ))}
@@ -226,16 +263,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                </div>
             )}
 
-            {/* Notes */}
             {recipe.notes && (
-               <div className="p-4 bg-amber-50 border-l-4 border-amber-500 text-sm text-amber-900 rounded-r-lg print:border-gray-300 print:bg-transparent print:border mt-4">
+               <div className="p-4 bg-amber-50 border-l-4 border-amber-500 text-sm text-amber-900 rounded-r-lg print:border-gray-300 print:bg-transparent print:border mt-4 print-break-inside-avoid">
                  <span className="font-bold block mb-1 flex items-center gap-2"><AlertTriangle size={16}/> Puntos Críticos / Notas:</span>
                  {recipe.notes}
                </div>
             )}
 
-             {/* Presentation Section */}
-             <div className="p-4 border border-gray-200 rounded-lg bg-white break-inside-avoid mt-4">
+             <div className="p-4 border border-gray-200 rounded-lg bg-white mt-4 print-break-inside-avoid">
                <h3 className="text-sm font-bold text-slate-800 uppercase mb-2 flex items-center gap-2">
                  <ChefHat size={16}/> Presentación y Emplatado
                </h3>
@@ -247,8 +282,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
           </div>
         </div>
 
-        {/* Footer: Service Specs */}
-        <div className="mt-10 border-t-2 border-slate-800 pt-6 break-inside-avoid print-break-inside-avoid">
+        <div className="mt-10 border-t-2 border-slate-800 pt-6 print-break-inside-avoid">
           <div className="flex items-center gap-2 mb-4">
              <Clock size={20} className="text-slate-800" />
              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">Ficha de Pase y Servicio</h2>
@@ -296,16 +330,28 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
              </div>
 
              <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
-               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Rendimiento</span>
-               <div className="font-medium text-slate-700 flex items-center gap-2">
-                 <Users size={16} className="text-slate-400"/>
-                 {recipe.yieldQuantity} {recipe.yieldUnit}
+               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Rendimiento (Ajustado)</span>
+               <div className="font-black text-emerald-700 flex items-center gap-2 text-lg">
+                 <Users size={18} className="text-emerald-500"/>
+                 {desiredYield} {recipe.yieldUnit}
+                 {scalingFactor !== 1 && (
+                   <span className="text-[10px] bg-emerald-100 px-2 py-0.5 rounded text-emerald-800 ml-2">Escalado</span>
+                 )}
                </div>
              </div>
           </div>
         </div>
 
       </div>
+
+      {/* PIE DE PÁGINA PROFESIONAL PARA IMPRESIÓN */}
+      <footer className="print-footer px-10">
+        <div className="flex-grow flex justify-between w-full">
+            <span className="font-bold uppercase tracking-tight">{recipe.name} • {desiredYield} {recipe.yieldUnit}</span>
+            <span className="italic">Generado el {currentDate} • KitchenManager Pro</span>
+            <span className="page-number font-bold"></span>
+        </div>
+      </footer>
     </div>
   );
 };
