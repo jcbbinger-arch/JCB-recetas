@@ -174,14 +174,37 @@ export const exportRecipeToJSON = (recipe: Recipe) => {
 export const getProducts = (): MasterProduct[] => {
   try {
     const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
+    let storedProducts: MasterProduct[] = [];
+    
     if (data) {
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : MASTER_PRODUCTS;
+      storedProducts = JSON.parse(data);
     } else {
+      // Si no hay datos, inicializamos con los maestros
       localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(MASTER_PRODUCTS));
       return MASTER_PRODUCTS;
     }
+
+    // LÓGICA DE INTEGRACIÓN Y SUSTITUCIÓN:
+    // Recorremos los MASTER_PRODUCTS para asegurar que estén en la lista y actualizados.
+    const mergedProducts = [...storedProducts];
+    
+    MASTER_PRODUCTS.forEach(master => {
+      const existingIdx = mergedProducts.findIndex(p => p.nombre.toLowerCase() === master.nombre.toLowerCase());
+      if (existingIdx >= 0) {
+        // Sustituimos por la versión maestra (precios y unidades actualizadas)
+        mergedProducts[existingIdx] = master;
+      } else {
+        // Añadimos si no existe
+        mergedProducts.push(master);
+      }
+    });
+
+    // Guardamos la mezcla de nuevo para persistir los cambios del maestro
+    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(mergedProducts));
+    return mergedProducts;
+    
   } catch (error) {
+    console.error("Error sync products", error);
     return MASTER_PRODUCTS;
   }
 };
