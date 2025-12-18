@@ -220,24 +220,38 @@ export default function App() {
             <div className="relative w-full sm:w-96"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="text-slate-400" size={18} /></div><input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 border-0 rounded-xl bg-white shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-emerald-600 sm:text-sm" /></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3"><div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><UtensilsCrossed size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Recetas</p><p className="text-lg font-bold">{recipes.length}</p></div></div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3"><div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Layers size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Menús</p><p className="text-lg font-bold">{menus.length}</p></div></div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3"><div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Tag size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Categorías</p><p className="text-lg font-bold">{categories.length}</p></div></div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><Database size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Ingredientes</p><p className="text-lg font-bold">{dbProductCount}</p></div></div>
           </div>
 
           {filteredRecipes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-dashed border-2"><ChefHat size={48} className="text-slate-300" /><h3 className="text-xl font-bold mt-4">Sin resultados</h3></div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
               {filteredRecipes.map((recipe) => (
-                <div key={recipe.id} onClick={() => handleDetail(recipe)} className="group bg-white rounded-2xl shadow-sm border hover:shadow-xl transition duration-300 cursor-pointer flex flex-col h-full overflow-hidden">
-                  <div className="aspect-square relative bg-slate-100">{recipe.photo ? <img src={recipe.photo} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-slate-300"><ChefHat size={48} /></div>}
-                    <div className="absolute top-3 left-3"><span className="bg-white/90 text-slate-800 text-xs font-bold px-3 py-1 rounded-full">{recipe.category}</span></div>
-                    <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => handleExport(e, recipe)} className="bg-white p-2 rounded-full hover:text-blue-600"><FileJson size={16} /></button><button onClick={(e) => handleEdit(e, recipe)} className="bg-white p-2 rounded-full hover:text-emerald-600"><Edit size={16} /></button><button onClick={(e) => handleDelete(e, recipe.id)} className="bg-white p-2 rounded-full hover:text-red-600"><Trash2 size={16} /></button></div>
+                <div key={recipe.id} onClick={() => handleDetail(recipe)} className="group bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-emerald-300 transition-all duration-300 cursor-pointer flex flex-col h-full overflow-hidden relative">
+                  <div className="aspect-square relative bg-slate-50 overflow-hidden">
+                    {recipe.photo ? <img src={recipe.photo} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <div className="flex items-center justify-center h-full text-slate-200"><ChefHat size={32} /></div>}
+                    <div className="absolute top-1.5 left-1.5"><span className="bg-white/95 text-slate-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter border border-slate-100 shadow-sm">{recipe.category}</span></div>
+                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                       <button onClick={(e) => handleExport(e, recipe)} title="Exportar JSON" className="bg-white p-1.5 rounded-lg hover:text-blue-600 text-slate-600 shadow-lg"><FileJson size={14} /></button>
+                       <button onClick={(e) => handleEdit(e, recipe)} title="Editar" className="bg-white p-1.5 rounded-lg hover:text-emerald-600 text-slate-600 shadow-lg"><Edit size={14} /></button>
+                       <button onClick={(e) => handleDelete(e, recipe.id)} title="Eliminar" className="bg-white p-1.5 rounded-lg hover:text-red-600 text-slate-600 shadow-lg"><Trash2 size={14} /></button>
+                    </div>
                   </div>
-                  <div className="p-5 flex-grow"><h3 className="text-lg font-bold group-hover:text-emerald-600">{recipe.name}</h3><p className="text-xs text-slate-400 mt-1">Por: {recipe.author}</p><div className="pt-4 mt-4 border-t flex justify-between text-xs text-slate-400 font-bold uppercase"><span>{recipe.yieldQuantity} {recipe.yieldUnit}</span><span>{recipe.elaborations.length} Elab.</span></div></div>
+                  <div className="p-2.5 flex-grow flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-[11px] font-black text-slate-800 leading-tight group-hover:text-emerald-600 line-clamp-2" title={recipe.name}>{recipe.name}</h3>
+                      <p className="text-[8px] text-slate-400 font-medium truncate mt-0.5">Por: {recipe.author}</p>
+                    </div>
+                    <div className="mt-2 pt-1.5 border-t border-slate-100 flex justify-between text-[8px] text-slate-400 font-black uppercase tracking-tighter">
+                      <span>{recipe.yieldQuantity} {recipe.yieldUnit.slice(0, 4)}</span>
+                      <span className="text-emerald-500">{recipe.elaborations.length} E.</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

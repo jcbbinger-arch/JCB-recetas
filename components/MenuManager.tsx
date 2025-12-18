@@ -229,34 +229,34 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
 
   if (viewMode === 'order' && selectedMenu) {
     return (
-      <div className="p-8 max-w-5xl mx-auto bg-white min-h-screen print:p-4 print:max-w-none">
+      <div className="p-8 max-w-5xl mx-auto bg-white min-h-screen print:p-0 print:max-w-none">
         <button onClick={() => setViewMode('detail')} className="no-print mb-8 flex items-center gap-2 text-slate-400 hover:text-slate-800 font-bold transition">
           <ArrowLeft size={18} /> Volver al Menú
         </button>
 
-        <header className="border-b-2 border-slate-900 pb-3 mb-6 flex justify-between items-end print:mb-4">
+        <header className="border-b-2 border-slate-900 pb-3 mb-6 flex justify-between items-end print:mb-2 print:pb-1">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter print:text-xl">Hoja de Pedido Consolidado</h1>
-            <p className="text-lg text-slate-500 font-medium print:text-xs">Menú: {selectedMenu.name} • <span className="text-emerald-600 font-black">{pax} PAX</span></p>
+            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter print:text-sm">Hoja de Pedido Consolidado</h1>
+            <p className="text-lg text-slate-500 font-medium print:text-[8px] print:leading-none">Menú: {selectedMenu.name} • <span className="text-emerald-600 font-black">{pax} PAX</span></p>
           </div>
           <button onClick={handlePrintOrder} className="no-print bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-xl">
             <Printer size={20} /> Imprimir Pedido
           </button>
         </header>
 
-        {/* Dos columnas solo en impresión */}
-        <div className="space-y-6 print:columns-2 print:gap-10 print:space-y-0">
+        {/* Dos columnas solo en impresión con fuente mínima */}
+        <div className="space-y-6 print:columns-2 print:gap-4 print:space-y-0 print:text-[7pt]">
           {Object.entries(consolidatedOrder).map(([category, items]) => (
-            <div key={category} className="break-inside-avoid mb-6 print:mb-4">
-              <h2 className="text-xl font-black bg-slate-100 px-4 py-1.5 border-l-4 border-emerald-500 text-slate-800 uppercase tracking-widest mb-3 print:text-[9pt] print:mb-1 print:bg-slate-50">
+            <div key={category} className="break-inside-avoid mb-6 print:mb-2">
+              <h2 className="text-xl font-black bg-slate-100 px-4 py-1.5 border-l-4 border-emerald-500 text-slate-800 uppercase tracking-widest mb-3 print:text-[8pt] print:px-2 print:py-0.5 print:mb-1 print:bg-slate-50">
                 {category}
               </h2>
-              <table className="w-full text-sm print:text-[8pt]">
+              <table className="w-full text-sm print:text-[7pt] print:leading-tight">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px] font-black print:text-[6pt]">
-                    <th className="text-left py-2 px-1">Producto</th>
-                    <th className="text-right py-2 px-1">Cant.</th>
-                    <th className="text-left py-2 px-1">Ud.</th>
+                    <th className="text-left py-2 px-1 print:py-0.5">Producto</th>
+                    <th className="text-right py-2 px-1 print:py-0.5">Cant.</th>
+                    <th className="text-left py-2 px-1 print:py-0.5">Ud.</th>
                     <th className="w-10 print:w-4"></th>
                   </tr>
                 </thead>
@@ -267,7 +267,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
                       <td className="py-2 px-1 text-right font-black text-emerald-700 print:py-0.5">
                         {parseFloat(data.quantity.toFixed(3))}
                       </td>
-                      <td className="py-2 px-1 text-slate-400 font-medium uppercase text-xs print:text-[7pt] print:py-0.5">{data.unit}</td>
+                      <td className="py-2 px-1 text-slate-400 font-medium uppercase text-xs print:text-[6pt] print:py-0.5">{data.unit}</td>
                       <td className="py-2 px-1 print:py-0.5">
                         <div className="w-5 h-5 border-2 border-slate-200 rounded print:w-3 print:h-3 print:border-1"></div>
                       </td>
@@ -279,8 +279,8 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
           ))}
         </div>
 
-        <footer className="mt-10 border-t pt-4 text-xs text-slate-400 flex justify-between uppercase font-bold italic print:text-[7pt] print:mt-4">
-          <span>KitchenManager Pro • Pedido Automático</span>
+        <footer className="mt-10 border-t pt-4 text-xs text-slate-400 flex justify-between uppercase font-bold italic print:text-[6pt] print:mt-2">
+          <span>KitchenManager Pro</span>
           <span>Fecha: {new Date().toLocaleDateString()}</span>
         </footer>
       </div>
@@ -307,8 +307,8 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
           </div>
 
           {menuRecipes.map((recipe, idx) => (
-            <div key={recipe.id} className="print:break-after-page">
-               <RecipeDetail recipe={recipe} onBack={() => {}} />
+            <div key={`${recipe.id}-${pax}`} className="print:break-after-page">
+               <RecipeDetail recipe={recipe} onBack={() => {}} initialDesiredYield={pax} />
             </div>
           ))}
         </div>

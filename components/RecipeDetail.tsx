@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Recipe } from '../types';
 import { Printer, ArrowLeft, Clock, Thermometer, Utensils, Users, AlertTriangle, ChefHat, User, Image as ImageIcon, ConciergeBell, ExternalLink, Scale } from 'lucide-react';
 import { findProductByName } from '../services/storage';
@@ -7,6 +7,7 @@ import { findProductByName } from '../services/storage';
 interface RecipeDetailProps {
   recipe: Recipe;
   onBack: () => void;
+  initialDesiredYield?: number;
 }
 
 const ALL_ALLERGENS_LIST = [
@@ -23,8 +24,16 @@ const SERVICE_TYPES_DESC: Record<string, string> = {
   "Servicio de Buffet": "Auto-servicio. El camarero se centra en bebidas y desbarase."
 };
 
-export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) => {
-  const [desiredYield, setDesiredYield] = useState<number>(recipe.yieldQuantity);
+export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack, initialDesiredYield }) => {
+  // Inicializamos con el valor proporcionado o el de la receta
+  const [desiredYield, setDesiredYield] = useState<number>(initialDesiredYield || recipe.yieldQuantity);
+
+  // Si el prop cambia externamente, actualizamos el estado local
+  useEffect(() => {
+    if (initialDesiredYield) {
+      setDesiredYield(initialDesiredYield);
+    }
+  }, [initialDesiredYield]);
 
   const handlePrint = () => {
     window.print();
@@ -56,9 +65,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
     if (isNaN(num)) return qty;
     
     const scaled = num * scalingFactor;
-    // Si es un número entero después del escalado, lo mostramos sin decimales
     if (Number.isInteger(scaled)) return scaled.toString();
-    // Si no, mostramos hasta 3 decimales (importante para 0.583g)
     return parseFloat(scaled.toFixed(3)).toString();
   };
 
@@ -129,13 +136,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                     </span>
                   )}
               </div>
-              <h1 className="text-5xl font-serif font-bold text-slate-900 leading-tight mb-2">{recipe.name}</h1>
-              <p className="text-lg text-slate-500 italic font-serif border-l-4 border-emerald-500 pl-3">
+              <h1 className="text-5xl font-serif font-bold text-slate-900 leading-tight mb-2 print:text-3xl">{recipe.name}</h1>
+              <p className="text-lg text-slate-500 italic font-serif border-l-4 border-emerald-500 pl-3 print:text-sm">
                  "{recipe.serviceDetails.clientDescription || 'Sin descripción comercial'}"
               </p>
            </div>
            
-           <div className="w-32 h-32 flex-shrink-0 ml-4">
+           <div className="w-32 h-32 flex-shrink-0 ml-4 print:w-20 print:h-20">
               {recipe.logo ? (
                   <img src={recipe.logo} alt="Logo" className="w-full h-full object-contain" />
               ) : (
@@ -146,9 +153,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
            </div>
         </header>
 
-        <div className="grid grid-cols-12 gap-8">
+        <div className="grid grid-cols-12 gap-8 print:gap-4">
           
-          <div className="col-span-5 print:col-span-5 flex flex-col gap-8">
+          <div className="col-span-5 print:col-span-4 flex flex-col gap-8 print:gap-4">
              <div className="w-full aspect-square bg-gray-100 border border-gray-200 rounded-lg overflow-hidden shadow-sm print:border-gray-400 relative">
                 {recipe.photo ? (
                   <img src={recipe.photo} alt={recipe.name} className="w-full h-full object-cover" />
@@ -161,59 +168,54 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
              </div>
 
              <div className="print-break-inside-avoid">
-                <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4 flex items-center gap-2 print:text-sm">
                    <Utensils size={18} /> Escandallo Escalado
                 </h2>
                 
                 {recipe.elaborations.map((elab, idx) => (
-                    <div key={idx} className="mb-6 break-inside-avoid">
+                    <div key={idx} className="mb-6 break-inside-avoid print:mb-2">
                         {recipe.elaborations.length > 1 && (
-                            <h3 className="font-bold text-emerald-700 text-sm mb-2 border-b border-emerald-100 pb-1">
+                            <h3 className="font-bold text-emerald-700 text-sm mb-2 border-b border-emerald-100 pb-1 print:text-[10px]">
                                 {idx + 1}. {elab.name || 'Elaboración'}
                             </h3>
                         )}
-                        <table className="w-full text-sm">
+                        <table className="w-full text-sm print:text-[9px]">
                         <thead className="sr-only">
                             <tr><th>Prod</th><th>Cnt</th><th>Ud</th></tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {elab.ingredients.map((ing, i) => (
                             <tr key={i} className={i % 2 === 0 ? 'bg-slate-50/50 print:bg-transparent' : ''}>
-                                <td className="py-1.5 pl-2 font-medium text-slate-700">{ing.name}</td>
-                                <td className="py-1.5 text-right text-slate-900 font-mono font-bold">
+                                <td className="py-1.5 pl-2 font-medium text-slate-700 print:py-0.5">{ing.name}</td>
+                                <td className="py-1.5 text-right text-slate-900 font-mono font-bold print:py-0.5">
                                   {formatQuantity(ing.quantity)}
                                 </td>
-                                <td className="py-1.5 pl-2 text-xs text-slate-400 uppercase">{ing.unit}</td>
+                                <td className="py-1.5 pl-2 text-xs text-slate-400 uppercase print:text-[8px] print:py-0.5">{ing.unit}</td>
                             </tr>
                             ))}
                         </tbody>
                         </table>
                     </div>
                 ))}
-                {scalingFactor !== 1 && (
-                  <p className="text-[10px] text-slate-400 italic mt-2 border-t pt-2">
-                    * Cantidades ajustadas automáticamente mediante factor {scalingFactor.toFixed(4)}.
-                  </p>
-                )}
              </div>
           </div>
 
-          <div className="col-span-7 print:col-span-7 flex flex-col gap-6">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 print:bg-white print:border-gray-300 print-break-inside-avoid">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center flex items-center justify-center gap-2">
-                 <AlertTriangle size={12} /> Declaración de Alérgenos (Global)
+          <div className="col-span-7 print:col-span-8 flex flex-col gap-6 print:gap-4">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 print:bg-white print:border-gray-300 print-break-inside-avoid print:p-2">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 text-center flex items-center justify-center gap-2 print:mb-1 print:text-[8px]">
+                 <AlertTriangle size={12} /> Alérgenos
               </h3>
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-2 print:gap-1">
                  {ALL_ALLERGENS_LIST.map((allergen) => {
                     const isActive = recipeAllergens.includes(allergen);
                     return (
-                        <div key={allergen} className={`flex flex-col items-center justify-center p-2 rounded border text-center transition-colors ${
+                        <div key={allergen} className={`flex flex-col items-center justify-center p-2 rounded border text-center transition-colors print:p-0.5 ${
                             isActive 
                             ? 'bg-white border-red-500 shadow-sm ring-1 ring-red-100' 
                             : 'bg-slate-100 border-transparent opacity-40 grayscale print:opacity-20'
                         }`}>
-                            <div className={`w-3 h-3 rounded-full mb-1 ${isActive ? 'bg-red-500' : 'bg-slate-300'}`}></div>
-                            <span className={`text-[9px] uppercase leading-tight ${isActive ? 'font-bold text-red-900' : 'text-slate-500'}`}>
+                            <div className={`w-3 h-3 rounded-full mb-1 print:w-1.5 print:h-1.5 print:mb-0.5 ${isActive ? 'bg-red-500' : 'bg-slate-300'}`}></div>
+                            <span className={`text-[9px] uppercase leading-tight print:text-[6px] ${isActive ? 'font-bold text-red-900' : 'text-slate-500'}`}>
                                 {allergen}
                             </span>
                         </div>
@@ -223,22 +225,22 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
             </div>
 
             <div>
-              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4">
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider border-b-2 border-slate-800 pb-1 mb-4 print:text-sm print:mb-2">
                 Elaboración
               </h2>
               {recipe.elaborations.map((elab, idx) => (
-                  <div key={idx} className="mb-6 break-inside-avoid">
+                  <div key={idx} className="mb-6 break-inside-avoid print:mb-3">
                       {recipe.elaborations.length > 1 && (
-                        <h3 className="font-bold text-slate-800 text-sm mb-2 bg-slate-100 p-1 pl-2 rounded">
+                        <h3 className="font-bold text-slate-800 text-sm mb-2 bg-slate-100 p-1 pl-2 rounded print:text-[10px] print:mb-1">
                             {idx + 1}. {elab.name || 'Proceso'}
                         </h3>
                       )}
-                      <div className="whitespace-pre-wrap text-justify text-slate-700 leading-relaxed text-sm font-light mb-3">
+                      <div className="whitespace-pre-wrap text-justify text-slate-700 leading-relaxed text-sm font-light mb-3 print:text-[10px] print:mb-1">
                         {elab.instructions || "Sin instrucciones definidas."}
                       </div>
 
                       {elab.photos && elab.photos.length > 0 && (
-                          <div className="grid grid-cols-3 gap-2 mb-3">
+                          <div className="grid grid-cols-3 gap-2 mb-3 print:mb-1">
                               {elab.photos.map((photo, pIdx) => (
                                   <div key={pIdx} className="aspect-video rounded overflow-hidden border border-gray-100 bg-gray-50">
                                       <img src={photo} className="w-full h-full object-cover" alt={`Paso ${pIdx}`} />
@@ -249,106 +251,65 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({ recipe, onBack }) =>
                   </div>
               ))}
             </div>
-            
-            {recipe.processPhotos && recipe.processPhotos.length > 0 && (
-               <div className="mt-4 border-t border-dashed border-gray-300 pt-4 print-break-inside-avoid">
-                 <h3 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><ImageIcon size={12}/> Galería General</h3>
-                 <div className="grid grid-cols-4 gap-2">
-                    {recipe.processPhotos.map((photo, idx) => (
-                      <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-gray-200">
-                         <img src={photo} className="w-full h-full object-cover" alt={`Paso ${idx}`} />
-                      </div>
-                    ))}
-                 </div>
-               </div>
-            )}
 
             {recipe.notes && (
-               <div className="p-4 bg-amber-50 border-l-4 border-amber-500 text-sm text-amber-900 rounded-r-lg print:border-gray-300 print:bg-transparent print:border mt-4 print-break-inside-avoid">
-                 <span className="font-bold block mb-1 flex items-center gap-2"><AlertTriangle size={16}/> Puntos Críticos / Notas:</span>
+               <div className="p-4 bg-amber-50 border-l-4 border-amber-500 text-sm text-amber-900 rounded-r-lg print:border-gray-300 print:bg-transparent print:border mt-4 print-break-inside-avoid print:p-2 print:text-[9px]">
+                 <span className="font-bold block mb-1 flex items-center gap-2"><AlertTriangle size={16}/> Notas:</span>
                  {recipe.notes}
                </div>
             )}
 
-             <div className="p-4 border border-gray-200 rounded-lg bg-white mt-4 print-break-inside-avoid">
-               <h3 className="text-sm font-bold text-slate-800 uppercase mb-2 flex items-center gap-2">
-                 <ChefHat size={16}/> Presentación y Emplatado
+             <div className="p-4 border border-gray-200 rounded-lg bg-white mt-4 print-break-inside-avoid print:p-2 print:mt-2">
+               <h3 className="text-sm font-bold text-slate-800 uppercase mb-2 flex items-center gap-2 print:text-[10px] print:mb-1">
+                 <ChefHat size={16}/> Emplatado
                </h3>
-               <p className="text-sm text-slate-600 italic leading-relaxed">
-                 {recipe.serviceDetails.presentation || "Sin especificaciones de presentación."}
+               <p className="text-sm text-slate-600 italic leading-relaxed print:text-[9px]">
+                 {recipe.serviceDetails.presentation || "Sin especificaciones."}
                </p>
              </div>
-
           </div>
         </div>
 
-        <div className="mt-10 border-t-2 border-slate-800 pt-6 print-break-inside-avoid">
-          <div className="flex items-center gap-2 mb-4">
-             <Clock size={20} className="text-slate-800" />
-             <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">Ficha de Pase y Servicio</h2>
-          </div>
-          
-          <div className="grid grid-cols-4 gap-4 text-sm">
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none relative overflow-hidden">
-               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Temperatura</span>
-               <div className="flex items-center gap-2 font-bold text-sm text-slate-700 leading-tight">
-                 <Thermometer size={16} className="text-emerald-500 flex-shrink-0" />
+        <div className="mt-10 border-t-2 border-slate-800 pt-6 print:pt-2 print:mt-4 print-break-inside-avoid">
+          <div className="grid grid-cols-4 gap-4 text-sm print:gap-2">
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:p-1.5">
+               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold print:text-[7px]">Temperatura</span>
+               <div className="flex items-center gap-2 font-bold text-sm text-slate-700 leading-tight print:text-[9px]">
                  {recipe.serviceDetails.servingTemp || "--"}
                </div>
              </div>
-             
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none">
-               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Tiempo Pase</span>
-               <div className="font-bold text-lg text-slate-700">
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:p-1.5">
+               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold print:text-[7px]">Tiempo Pase</span>
+               <div className="font-bold text-lg text-slate-700 print:text-[11px]">
                  {recipe.serviceDetails.passTime || "--"}
                </div>
              </div>
-
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm col-span-2 print:shadow-none">
-               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Marcaje / Cubiertos</span>
-               <div className="font-medium text-slate-700 flex items-center gap-2">
-                 <Utensils size={16} className="text-slate-400"/>
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm col-span-2 print:p-1.5">
+               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold print:text-[7px]">Marcaje</span>
+               <div className="font-medium text-slate-700 text-sm print:text-[9px]">
                  {recipe.serviceDetails.cutlery || "Estándar"}
                </div>
              </div>
-             
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
-               <div className="flex items-start gap-2">
-                   <ConciergeBell size={18} className="text-slate-400 mt-1" />
-                   <div>
-                       <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Tipo Servicio</span>
-                       <div className="font-bold text-slate-800">
-                         {recipe.serviceDetails.serviceType}
-                       </div>
-                       {serviceDesc && (
-                           <div className="text-xs text-slate-500 italic mt-1 leading-tight">
-                               {serviceDesc}
-                           </div>
-                       )}
-                   </div>
-               </div>
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:p-1.5 col-span-2">
+                <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold print:text-[7px]">Tipo Servicio</span>
+                <div className="font-bold text-slate-800 print:text-[10px]">
+                  {recipe.serviceDetails.serviceType}
+                </div>
              </div>
-
-             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:shadow-none col-span-2">
-               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold">Rendimiento (Ajustado)</span>
-               <div className="font-black text-emerald-700 flex items-center gap-2 text-lg">
-                 <Users size={18} className="text-emerald-500"/>
+             <div className="p-3 bg-white border border-slate-200 rounded shadow-sm print:p-1.5 col-span-2">
+               <span className="block text-[10px] text-slate-400 uppercase mb-1 font-bold print:text-[7px]">PAX Ajustado</span>
+               <div className="font-black text-emerald-700 text-lg print:text-[12px]">
                  {desiredYield} {recipe.yieldUnit}
-                 {scalingFactor !== 1 && (
-                   <span className="text-[10px] bg-emerald-100 px-2 py-0.5 rounded text-emerald-800 ml-2">Escalado</span>
-                 )}
                </div>
              </div>
           </div>
         </div>
-
       </div>
 
-      {/* PIE DE PÁGINA PROFESIONAL PARA IMPRESIÓN */}
       <footer className="print-footer px-10">
         <div className="flex-grow flex justify-between w-full">
             <span className="font-bold uppercase tracking-tight">{recipe.name} • {desiredYield} {recipe.yieldUnit}</span>
-            <span className="italic">Generado el {currentDate} • KitchenManager Pro</span>
+            <span className="italic">KitchenManager Pro</span>
             <span className="page-number font-bold"></span>
         </div>
       </footer>
