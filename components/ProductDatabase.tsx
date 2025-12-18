@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { MasterProduct } from '../data/products';
 import { getProducts, saveProduct, deleteProduct } from '../services/storage';
-import { Search, Plus, Trash2, Edit, ArrowLeft, ArrowUpDown, ChevronUp, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, ArrowLeft, ArrowUpDown, ChevronUp, ChevronDown, CheckCircle2, Upload, FileSpreadsheet, Info, AlertCircle } from 'lucide-react';
 
 interface ProductDatabaseProps {
   onBack: () => void;
@@ -18,6 +18,9 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
   const [sortField, setSortField] = useState<SortField>('nombre');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<{count: number, error: string | null} | null>(null);
+
   // Form State
   const [isEditing, setIsEditing] = useState(false);
   const [originalName, setOriginalName] = useState('');
@@ -60,7 +63,6 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
       let valA: any = a[sortField];
       let valB: any = b[sortField];
 
-      // Manejo de nulos en precio
       if (valA === null) valA = 0;
       if (valB === null) valB = 0;
 
@@ -80,9 +82,72 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
 
   const parseDecimal = (val: string): number => {
     if (!val) return 0;
-    const sanitized = val.replace(',', '.');
+    const sanitized = val.replace(/[€\s]/g, '').replace(',', '.');
     const parsed = parseFloat(sanitized);
     return isNaN(parsed) ? 0 : parsed;
+  };
+
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) return;
+
+        // Detectar separador (coma o punto y coma)
+        const firstLine = lines[0];
+        const separator = firstLine.includes(';') ? ';' : ',';
+        
+        let importedCount = 0;
+        
+        // Empezar en i=1 para saltar cabecera
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          // Simple CSV splitter que respeta algunas comillas si es necesario
+          const parts = line.split(separator).map(p => p.trim().replace(/^"|"$/g, ''));
+          
+          if (parts.length < 1) continue;
+
+          // Mapeo básico: 0: Nombre, 1: Precio, 2: Unidad, 3: Alérgenos
+          const nombre = parts[0];
+          const precioStr = parts[1] || '';
+          const unidad = parts[2] || 'unidad';
+          const alergenosRaw = parts[3] || '';
+
+          const alergenos = ALL_ALLERGENS.filter(a => 
+            alergenosRaw.toLowerCase().includes(a.toLowerCase()) ||
+            // Alias comunes
+            (a === 'Frutos de cáscara' && alergenosRaw.toLowerCase().includes('frutos secos')) ||
+            (a === 'Gluten' && alergenosRaw.toLowerCase().includes('trigo'))
+          );
+
+          if (nombre) {
+            saveProduct({
+              nombre,
+              precio: precioStr ? parseDecimal(precioStr) : null,
+              unidad,
+              alérgenos: alergenos
+            });
+            importedCount++;
+          }
+        }
+
+        setImportStatus({ count: importedCount, error: null });
+        loadProducts();
+        setTimeout(() => setImportStatus(null), 5000);
+      } catch (err) {
+        setImportStatus({ count: 0, error: "Error al procesar el archivo. Asegúrate de que es un CSV válido." });
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (csvInputRef.current) csvInputRef.current.value = '';
   };
 
   const openAddForm = () => {
@@ -107,7 +172,6 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     e.preventDefault();
     if (!formProd.nombre) return;
     
-    // Si estamos editando y el nombre cambió, eliminamos el registro antiguo
     if (isEditing && originalName !== formProd.nombre) {
       deleteProduct(originalName);
     }
@@ -152,7 +216,7 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans animate-in fade-in duration-300">
       {/* Header */}
       <header className="bg-slate-900 text-white sticky top-0 z-20 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded-full transition">
               <ArrowLeft size={24} />
@@ -164,17 +228,50 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
               </p>
             </div>
           </div>
-          <button 
-            onClick={openAddForm}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition"
-          >
-            <Plus size={20} /> Nuevo Producto
-          </button>
+          <div className="flex gap-3">
+            <input 
+              type="file" 
+              accept=".csv" 
+              className="hidden" 
+              ref={csvInputRef} 
+              onChange={handleCSVImport}
+            />
+            <button 
+              onClick={() => csvInputRef.current?.click()}
+              className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition"
+            >
+              <FileSpreadsheet size={20} /> Importar CSV
+            </button>
+            <button 
+              onClick={openAddForm}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition"
+            >
+              <Plus size={20} /> Nuevo Producto
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto w-full px-4 py-8 flex-grow">
         
+        {importStatus && (
+          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-4 ${importStatus.error ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>
+            {importStatus.error ? <AlertCircle size={20}/> : <CheckCircle2 size={20}/>}
+            <span className="font-bold">
+              {importStatus.error ? importStatus.error : `¡Éxito! Se han importado/actualizado ${importStatus.count} productos.`}
+            </span>
+          </div>
+        )}
+
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl mb-6 flex gap-4 items-start">
+            <Info className="text-blue-500 shrink-0 mt-1" size={20} />
+            <div className="text-sm text-blue-800">
+                <p className="font-bold mb-1">Guía de Importación CSV:</p>
+                <p>El archivo debe tener este orden: <strong>Nombre del producto, Precio, Unidad, Alérgenos</strong>.</p>
+                <p className="text-xs mt-1 opacity-80">Ejemplo: Bacalao fresco; 12,50; Kg; Pescado</p>
+            </div>
+        </div>
+
         {/* Search & Counter */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
           <div className="relative flex-grow w-full">
@@ -184,7 +281,7 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
               placeholder="Buscar por nombre (ej: tomate, metro chef...)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
             />
           </div>
           <div className="bg-white px-4 py-3 rounded-xl border border-gray-200 shadow-sm whitespace-nowrap">
