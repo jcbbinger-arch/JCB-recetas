@@ -1,19 +1,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, UserProfile, Menu } from './types';
-import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus } from './services/storage';
+import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus, getProducts } from './services/storage';
 import { RecipeForm } from './components/RecipeForm';
 import { RecipeDetail } from './components/RecipeDetail';
 import { ProductDatabase } from './components/ProductDatabase';
 import { MenuManager } from './components/MenuManager';
-import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag, BookOpen, Layers } from 'lucide-react';
+import { AIDigitalizer } from './components/AIDigitalizer';
+import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, User, ImageIcon, Tag, Layers, Sparkles } from 'lucide-react';
 
-type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus';
+type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus' | 'ai_scan';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('list');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [dbProductCount, setDbProductCount] = useState(0);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -34,6 +36,8 @@ export default function App() {
     setMenus(getMenus());
     setUserProfile(getUserProfile());
     setCategories(getCategories());
+    // Actualizamos el contador real de la base de datos
+    setDbProductCount(getProducts().length);
   };
 
   const handleCreateNew = () => {
@@ -44,7 +48,7 @@ export default function App() {
       category: getCategories()[0] || 'General',
       sourceUrl: '',
       elaborations: [
-          { id: 'default_elab_' + Date.now(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
+          { id: 'elab_' + Date.now(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
       ],
       yieldQuantity: 4,
       yieldUnit: 'raciones',
@@ -58,6 +62,38 @@ export default function App() {
       }
     };
     setSelectedRecipe(recipeWithProfile as Recipe); 
+    setView('create');
+  };
+
+  const handleAIScanResult = (draft: Partial<Recipe>) => {
+    const profile = getUserProfile();
+    const finalDraft: Recipe = {
+      ...draft,
+      id: 'draft_' + Date.now(),
+      author: draft.author || profile.authorName || '',
+      logo: draft.logo || profile.logo || '',
+      category: draft.category || getCategories()[0] || 'General',
+      yieldQuantity: draft.yieldQuantity || 4,
+      yieldUnit: draft.yieldUnit || 'raciones',
+      processPhotos: [],
+      elaborations: (draft.elaborations || []).map(e => ({
+        ...e,
+        id: 'elab_' + Math.random().toString(36).substr(2, 9),
+        ingredients: e.ingredients || [],
+        instructions: e.instructions || '',
+        photos: []
+      })),
+      serviceDetails: {
+        presentation: draft.serviceDetails?.presentation || '',
+        servingTemp: draft.serviceDetails?.servingTemp || '',
+        cutlery: draft.serviceDetails?.cutlery || '',
+        passTime: draft.serviceDetails?.passTime || '',
+        serviceType: draft.serviceDetails?.serviceType || 'A la Americana (Emplatado)',
+        clientDescription: draft.serviceDetails?.clientDescription || ''
+      }
+    } as Recipe;
+
+    setSelectedRecipe(finalDraft);
     setView('create');
   };
 
@@ -114,7 +150,7 @@ export default function App() {
   };
 
   const handleDeleteCategory = (cat: string) => {
-    if (window.confirm(`¿Eliminar categoría "${cat}"? Las recetas existentes no se verán afectadas.`)) {
+    if (window.confirm(`¿Eliminar categoría "${cat}"?`)) {
       deleteCategory(cat);
       setCategories(getCategories());
     }
@@ -140,21 +176,14 @@ export default function App() {
 
   const filteredRecipes = recipes.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.author && r.author.toLowerCase().includes(searchTerm.toLowerCase()))
+    r.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const totalIngredients = recipes.reduce((acc, r) => {
-    const ingredientsInRecipe = r.elaborations 
-      ? r.elaborations.reduce((eAcc, elab) => eAcc + elab.ingredients.length, 0)
-      : (r.ingredients?.length || 0);
-    return acc + ingredientsInRecipe;
-  }, 0);
 
   if (view === 'create' || view === 'edit') return (<div className="min-h-screen bg-slate-100 py-8 px-4"><RecipeForm initialRecipe={selectedRecipe} onSave={handleSaveForm} onCancel={() => setView('list')} /></div>);
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
-  if (view === 'products') return (<ProductDatabase onBack={() => setView('list')} />);
+  if (view === 'products') return (<ProductDatabase onBack={() => { setView('list'); refreshAll(); }} />);
   if (view === 'menus') return (<MenuManager menus={menus} onBack={() => setView('list')} onRefresh={refreshAll} />);
+  if (view === 'ai_scan') return (<AIDigitalizer onBack={() => setView('list')} onSuccess={handleAIScanResult} />);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
@@ -167,7 +196,8 @@ export default function App() {
           <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
             <button onClick={() => setView('list')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'list' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutGrid size={20} />Dashboard</button>
             <button onClick={() => setView('menus')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'menus' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Layers size={20} />Menús y Eventos</button>
-            <button onClick={() => setView('products')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Database size={20} />Base de Datos</button>
+            <button onClick={() => setView('products')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'products' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Database size={20} />Base de Datos</button>
+            <button onClick={() => setView('ai_scan')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'ai_scan' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-400 hover:bg-emerald-900/30'}`}><Sparkles size={20} />Scanner IA</button>
             <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Settings size={20} />Configuración</button>
           </nav>
           <div className="p-4 border-t border-slate-800"><button onClick={handleCreateNew} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"><Plus size={20} />Nueva Ficha</button></div>
@@ -183,7 +213,7 @@ export default function App() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{totalIngredients}</p></div></div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
           </div>
 
           {filteredRecipes.length === 0 ? (
