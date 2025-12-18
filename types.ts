@@ -12,47 +12,48 @@ export interface UserProfile {
 
 export interface Elaboration {
   id: string;
-  name: string; // Nombre de la sub-receta (ej: "Salsa", "Relleno")
+  name: string; 
   ingredients: Ingredient[];
   instructions: string;
-  photos: string[]; // Base64 strings específicos para este paso
+  photos: string[]; 
+}
+
+export interface Menu {
+  id: string;
+  name: string;
+  recipeIds: string[];
+  description?: string;
+  createdAt: string;
 }
 
 export interface Recipe {
   id: string;
   name: string;
-  category: string; // Ej: Entrantes, Carnes, Postres
-  
-  // Personalización
+  category: string; 
   author?: string;
-  logo?: string; // Base64 del logo del restaurante/creador
-  sourceUrl?: string; // Enlace a vídeo o web original
+  logo?: string; 
+  sourceUrl?: string; 
 
-  // Datos de Rendimiento
-  yieldQuantity: number; // Cantidad resultante
-  yieldUnit: string;     // Unidad (ej: raciones, litros)
+  yieldQuantity: number; 
+  yieldUnit: string;     
   
-  // Multimedia
-  photo?: string; // Base64 string para la imagen PRINCIPAL (Cuadrada)
-  processPhotos: string[]; // Array de Base64 para el paso a paso GLOBAL (General)
+  photo?: string; 
+  processPhotos: string[]; 
 
-  // Estructura de Elaboraciones (Nuevo Sistema)
   elaborations: Elaboration[];
   
-  // Deprecated (mantenidos temporalmente para migración)
   ingredients?: Ingredient[];
   instructions?: string;
 
   notes?: string;
 
-  // DETALLES DE SERVICIO
   serviceDetails: {
-    presentation: string;      // Notas de emplatado (Ahora destacado)
-    servingTemp: string;       // Temperatura de servicio
-    cutlery: string;           // Marcaje/Cubiertos
-    passTime: string;          // Tiempo de pase
-    serviceType: string;       // Tipo de servicio (ej: emplatado, gueridón)
-    clientDescription: string; // Descripción comercial para carta
+    presentation: string;      
+    servingTemp: string;       
+    cutlery: string;           
+    passTime: string;          
+    serviceType: string;       
+    clientDescription: string; 
   };
 }
 
@@ -79,7 +80,7 @@ export const DEFAULT_RECIPE: Omit<Recipe, 'id'> = {
     servingTemp: '',
     cutlery: '',
     passTime: '',
-    serviceType: 'Emplatado',
+    serviceType: 'A la Americana (Emplatado)',
     clientDescription: ''
   }
 };

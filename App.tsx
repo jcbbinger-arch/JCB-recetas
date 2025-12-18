@@ -1,17 +1,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Recipe, UserProfile } from './types';
-import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory } from './services/storage';
+import { Recipe, UserProfile, Menu } from './types';
+import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus } from './services/storage';
 import { RecipeForm } from './components/RecipeForm';
 import { RecipeDetail } from './components/RecipeDetail';
 import { ProductDatabase } from './components/ProductDatabase';
-import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag } from 'lucide-react';
+import { MenuManager } from './components/MenuManager';
+import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag, BookOpen, Layers } from 'lucide-react';
 
-type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products';
+type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('list');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [menus, setMenus] = useState<Menu[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -24,13 +26,14 @@ export default function App() {
   const [newCategoryName, setNewCategoryName] = useState('');
 
   useEffect(() => {
-    refreshRecipes();
-    setUserProfile(getUserProfile());
-    setCategories(getCategories());
+    refreshAll();
   }, []);
 
-  const refreshRecipes = () => {
+  const refreshAll = () => {
     setRecipes(getRecipes());
+    setMenus(getMenus());
+    setUserProfile(getUserProfile());
+    setCategories(getCategories());
   };
 
   const handleCreateNew = () => {
@@ -73,7 +76,7 @@ export default function App() {
     e.stopPropagation();
     if (window.confirm('¿Estás seguro de eliminar esta ficha técnica?')) {
       deleteRecipe(id);
-      refreshRecipes();
+      refreshAll();
     }
   };
 
@@ -84,12 +87,10 @@ export default function App() {
 
   const handleSaveForm = (recipe: Recipe) => {
     saveRecipe(recipe);
-    refreshRecipes();
+    refreshAll();
     setView('list');
   };
 
-  // --- SETTINGS HANDLERS ---
-  
   const handleSaveProfile = () => {
     saveUserProfile(userProfile);
     alert('Perfil guardado.');
@@ -129,9 +130,7 @@ export default function App() {
         const result = restoreFromBackup(content);
         if (result.success) {
           alert(result.message);
-          refreshRecipes();
-          setUserProfile(getUserProfile());
-          setCategories(getCategories());
+          refreshAll();
           setShowSettingsModal(false);
         } else alert("Error: " + result.message);
       }
@@ -155,14 +154,19 @@ export default function App() {
   if (view === 'create' || view === 'edit') return (<div className="min-h-screen bg-slate-100 py-8 px-4"><RecipeForm initialRecipe={selectedRecipe} onSave={handleSaveForm} onCancel={() => setView('list')} /></div>);
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
   if (view === 'products') return (<ProductDatabase onBack={() => setView('list')} />);
+  if (view === 'menus') return (<MenuManager menus={menus} onBack={() => setView('list')} onRefresh={refreshAll} />);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
       <div className="flex flex-col lg:flex-row flex-grow min-h-screen">
         <aside className="bg-slate-900 text-white lg:w-64 flex-shrink-0 flex flex-col sticky top-0 z-30 lg:h-screen">
-          <div className="p-6 flex items-center gap-3 border-b border-slate-800"><div className="bg-emerald-500 p-2 rounded-lg text-white shadow-lg"><ChefHat size={28} /></div><div><h1 className="text-lg font-bold tracking-tight">Kitchen<span className="text-emerald-400">Manager</span></h1><p className="text-[10px] text-slate-400 mt-1 uppercase">Pro Edition</p></div></div>
+          <div className="p-6 flex items-center gap-3 border-b border-slate-800">
+            <div className="bg-emerald-500 p-2 rounded-lg text-white shadow-lg"><ChefHat size={28} /></div>
+            <div><h1 className="text-lg font-bold tracking-tight">Kitchen<span className="text-emerald-400">Manager</span></h1><p className="text-[10px] text-slate-400 mt-1 uppercase">Pro Edition</p></div>
+          </div>
           <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
             <button onClick={() => setView('list')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'list' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutGrid size={20} />Dashboard</button>
+            <button onClick={() => setView('menus')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'menus' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Layers size={20} />Menús y Eventos</button>
             <button onClick={() => setView('products')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Database size={20} />Base de Datos</button>
             <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Settings size={20} />Configuración</button>
           </nav>
@@ -175,8 +179,9 @@ export default function App() {
             <div className="relative w-full sm:w-96"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="text-slate-400" size={18} /></div><input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 border-0 rounded-xl bg-white shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-emerald-600 sm:text-sm" /></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Total Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{totalIngredients}</p></div></div>
           </div>

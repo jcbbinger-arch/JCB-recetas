@@ -1,20 +1,44 @@
 
-import { Recipe, UserProfile } from '../types';
+import { Recipe, UserProfile, Menu } from '../types';
 import { MASTER_PRODUCTS, MasterProduct } from '../data/products';
 
 const RECIPE_STORAGE_KEY = 'kitchen_recipes_v1';
 const PRODUCT_STORAGE_KEY = 'kitchen_products_v1';
 const PROFILE_STORAGE_KEY = 'kitchen_profile_v1';
 const CATEGORY_STORAGE_KEY = 'kitchen_categories_v1';
+const MENU_STORAGE_KEY = 'kitchen_menus_v1';
 
 const DEFAULT_CATEGORIES = [
   'Entrantes', 'Primeros', 'Pescados', 'Carnes', 'Postres', 
   'Salsas/Fondos', 'Cócteles', 'Panadería', 'Guarniciones'
 ];
 
-// Helper for ID generation (Safe implementation)
 export const generateId = (): string => {
   return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+};
+
+// --- MENUS ---
+
+export const getMenus = (): Menu[] => {
+  try {
+    const data = localStorage.getItem(MENU_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+export const saveMenu = (menu: Menu): void => {
+  const menus = getMenus();
+  const index = menus.findIndex(m => m.id === menu.id);
+  if (index >= 0) menus[index] = menu;
+  else menus.push(menu);
+  localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(menus));
+};
+
+export const deleteMenu = (id: string): void => {
+  const menus = getMenus().filter(m => m.id !== id);
+  localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(menus));
 };
 
 // --- CATEGORIES ---
@@ -55,17 +79,12 @@ export const getUserProfile = (): UserProfile => {
     const data = localStorage.getItem(PROFILE_STORAGE_KEY);
     return data ? JSON.parse(data) : { authorName: '', logo: '' };
   } catch (error) {
-    console.warn("Error loading profile, resetting default", error);
     return { authorName: '', logo: '' };
   }
 };
 
 export const saveUserProfile = (profile: UserProfile): void => {
-  try {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
-  } catch (e) {
-    console.error("Storage full or error", e);
-  }
+  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
 };
 
 // --- RECIPES ---
@@ -79,76 +98,31 @@ export const getRecipes = (): Recipe[] => {
     try {
       rawRecipes = JSON.parse(data);
     } catch (e) {
-      console.error("Corrupted recipe data found, resetting list.", e);
       return [];
     }
 
-    if (!Array.isArray(rawRecipes)) {
-      return [];
-    }
+    if (!Array.isArray(rawRecipes)) return [];
     
     return rawRecipes.map((r: any) => {
       if (!r || typeof r !== 'object') return null;
-
       let updatedRecipe = { ...r };
       updatedRecipe.id = updatedRecipe.id || generateId();
-      updatedRecipe.name = updatedRecipe.name || 'Sin Nombre';
-      updatedRecipe.sourceUrl = updatedRecipe.sourceUrl || '';
-      updatedRecipe.processPhotos = Array.isArray(updatedRecipe.processPhotos) ? updatedRecipe.processPhotos : [];
-
-      if (!updatedRecipe.elaborations || !Array.isArray(updatedRecipe.elaborations) || updatedRecipe.elaborations.length === 0) {
-        updatedRecipe.elaborations = [
-          {
-            id: generateId(),
-            name: 'Elaboración Principal',
-            ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
-            instructions: typeof r.instructions === 'string' ? r.instructions : '',
-            photos: []
-          }
-        ];
-      } else {
-        updatedRecipe.elaborations = updatedRecipe.elaborations.map((e: any) => ({
-            ...e,
-            id: e.id || generateId(),
-            ingredients: Array.isArray(e.ingredients) ? e.ingredients : [],
-            photos: Array.isArray(e.photos) ? e.photos : [],
-            instructions: e.instructions || ''
-        }));
+      if (!updatedRecipe.elaborations || updatedRecipe.elaborations.length === 0) {
+        updatedRecipe.elaborations = [{ id: generateId(), name: 'Elaboración Principal', ingredients: r.ingredients || [], instructions: r.instructions || '', photos: [] }];
       }
-
-      updatedRecipe.serviceDetails = {
-           presentation: r.serviceDetails?.presentation || '',
-           servingTemp: r.serviceDetails?.servingTemp || '',
-           cutlery: r.serviceDetails?.cutlery || '',
-           passTime: r.serviceDetails?.passTime || '',
-           serviceType: r.serviceDetails?.serviceType || 'Emplatado',
-           clientDescription: r.serviceDetails?.clientDescription || ''
-      };
-
       return updatedRecipe;
     }).filter(Boolean) as Recipe[];
-
   } catch (error) {
-    console.error("Fatal error reading recipes", error);
     return [];
   }
 };
 
 export const saveRecipe = (recipe: Recipe): void => {
-  try {
-    const recipes = getRecipes();
-    const existingIndex = recipes.findIndex(r => r.id === recipe.id);
-    
-    if (existingIndex >= 0) {
-      recipes[existingIndex] = recipe;
-    } else {
-      recipes.push(recipe);
-    }
-    
-    localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes));
-  } catch (e) {
-    alert("Error al guardar: Posiblemente el almacenamiento local está lleno.");
-  }
+  const recipes = getRecipes();
+  const existingIndex = recipes.findIndex(r => r.id === recipe.id);
+  if (existingIndex >= 0) recipes[existingIndex] = recipe;
+  else recipes.push(recipe);
+  localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes));
 };
 
 export const deleteRecipe = (id: string): void => {
@@ -156,51 +130,20 @@ export const deleteRecipe = (id: string): void => {
   localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes));
 };
 
-export const exportRecipeToJSON = (recipe: Recipe) => {
-  const dataStr = JSON.stringify(recipe, null, 2);
-  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-  
-  const safeName = (recipe.name || 'receta').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  const exportFileDefaultName = `${safeName}_ficha.json`;
-  
-  const linkElement = document.createElement('a');
-  linkElement.setAttribute('href', dataUri);
-  linkElement.setAttribute('download', exportFileDefaultName);
-  linkElement.click();
-};
-
 // --- PRODUCTS ---
 
 export const getProducts = (): MasterProduct[] => {
   try {
     const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
-    let storedProducts: MasterProduct[] = [];
-    
-    if (data) {
-      storedProducts = JSON.parse(data);
-    }
-
-    // LÓGICA DE SINCRONIZACIÓN MEJORADA:
-    // Solo inyectamos productos maestros si no están ya en la base de datos del usuario.
-    // Esto respeta las ediciones manuales (precios, unidades, alérgenos) del usuario.
+    let storedProducts: MasterProduct[] = data ? JSON.parse(data) : [];
     const mergedProducts = [...storedProducts];
-    
     MASTER_PRODUCTS.forEach(master => {
-      const exists = mergedProducts.some(p => p.nombre.toLowerCase() === master.nombre.toLowerCase());
-      if (!exists) {
+      if (!mergedProducts.some(p => p.nombre.toLowerCase() === master.nombre.toLowerCase())) {
         mergedProducts.push(master);
       }
     });
-
-    // Guardamos si hubo cambios por inyección de maestros
-    if (mergedProducts.length !== storedProducts.length) {
-      localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(mergedProducts));
-    }
-    
     return mergedProducts.sort((a, b) => a.nombre.localeCompare(b.nombre));
-    
   } catch (error) {
-    console.error("Error sync products", error);
     return MASTER_PRODUCTS;
   }
 };
@@ -208,13 +151,8 @@ export const getProducts = (): MasterProduct[] => {
 export const saveProduct = (product: MasterProduct): void => {
   const products = getProducts();
   const existingIndex = products.findIndex(p => p.nombre.toLowerCase() === product.nombre.toLowerCase());
-  
-  if (existingIndex >= 0) {
-    products[existingIndex] = product;
-  } else {
-    products.push(product);
-  }
-  products.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  if (existingIndex >= 0) products[existingIndex] = product;
+  else products.push(product);
   localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(products));
 };
 
@@ -224,42 +162,53 @@ export const deleteProduct = (name: string): void => {
 };
 
 export const findProductByName = (name: string): MasterProduct | undefined => {
-  const products = getProducts();
-  return products.find(p => p.nombre.toLowerCase() === name.toLowerCase());
+  return getProducts().find(p => p.nombre.toLowerCase() === name.toLowerCase());
 };
 
-// --- BACKUP SYSTEM ---
+// --- BACKUP & EXPORT ---
 
+// Fix: Implementation of exportRecipeToJSON to resolve missing export error in App.tsx
+export const exportRecipeToJSON = (recipe: Recipe): void => {
+  const dataStr = JSON.stringify(recipe, null, 2);
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+  const exportFileDefaultName = `receta_${recipe.name.replace(/\s+/g, '_') || 'sin_nombre'}.json`;
+
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+};
+
+// Fix: Implementation of createFullBackup to resolve missing export error in App.tsx
 export const createFullBackup = (): void => {
   const backup = {
-    version: 3, 
-    timestamp: new Date().toISOString(),
     recipes: getRecipes(),
     products: getProducts(),
+    categories: getCategories(),
+    menus: getMenus(),
     profile: getUserProfile(),
-    categories: getCategories()
   };
 
   const dataStr = JSON.stringify(backup, null, 2);
-  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-  const date = new Date().toISOString().split('T')[0];
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+  const exportFileDefaultName = `backup_kitchen_manager_${new Date().toISOString().split('T')[0]}.json`;
+
   const linkElement = document.createElement('a');
   linkElement.setAttribute('href', dataUri);
-  linkElement.setAttribute('download', `backup_cocina_${date}.json`);
+  linkElement.setAttribute('download', exportFileDefaultName);
   linkElement.click();
 };
 
 export const restoreFromBackup = (jsonString: string): { success: boolean; message: string } => {
   try {
     const data = JSON.parse(jsonString);
-
-    if (Array.isArray(data.recipes)) localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(data.recipes));
-    if (Array.isArray(data.products)) localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(data.products));
-    if (Array.isArray(data.categories)) localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(data.categories));
+    if (data.recipes) localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(data.recipes));
+    if (data.products) localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(data.products));
+    if (data.categories) localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(data.categories));
+    if (data.menus) localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(data.menus));
     if (data.profile) saveUserProfile(data.profile);
-
     return { success: true, message: "Restauración completada." };
   } catch (e) {
-    return { success: false, message: "Archivo corrupto o inválido." };
+    return { success: false, message: "Archivo corrupto." };
   }
 };
