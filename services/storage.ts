@@ -120,42 +120,44 @@ export const getProducts = (): MasterProduct[] => {
     const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
     let storedProducts: MasterProduct[] = data ? JSON.parse(data) : [];
     
-    // Unificar maestro con local
-    const merged = [...storedProducts];
-    MASTER_PRODUCTS.forEach(master => {
-      if (!merged.some(p => p.nombre.toLowerCase() === master.nombre.toLowerCase())) {
-        merged.push(master);
-      }
-    });
+    // Usamos un Map para evitar duplicados por nombre de forma eficiente
+    const productMap = new Map<string, MasterProduct>();
     
-    return merged.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    // 1. Cargar productos maestros (Listado profesional)
+    MASTER_PRODUCTS.forEach(p => productMap.set(p.nombre.toLowerCase(), p));
+    
+    // 2. Cargar productos guardados por el usuario (sobreescriben si coinciden)
+    storedProducts.forEach(p => productMap.set(p.nombre.toLowerCase(), p));
+    
+    return Array.from(productMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
   } catch (error) {
     return MASTER_PRODUCTS;
   }
 };
 
 export const saveProduct = (product: MasterProduct): void => {
-  const products = getProducts();
-  const existingIndex = products.findIndex(p => p.nombre.toLowerCase() === product.nombre.toLowerCase());
-  const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
-  let stored: MasterProduct[] = data ? JSON.parse(data) : [];
-  
-  const storedIndex = stored.findIndex(p => p.nombre.toLowerCase() === product.nombre.toLowerCase());
-  if (storedIndex >= 0) stored[storedIndex] = product;
-  else stored.push(product);
-  
-  localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(stored));
+  try {
+    const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
+    let stored: MasterProduct[] = data ? JSON.parse(data) : [];
+    const index = stored.findIndex(p => p.nombre.toLowerCase() === product.nombre.toLowerCase());
+    if (index >= 0) stored[index] = product;
+    else stored.push(product);
+    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(stored));
+  } catch (e) {}
 };
 
 export const deleteProduct = (name: string): void => {
-  const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
-  let stored: MasterProduct[] = data ? JSON.parse(data) : [];
-  stored = stored.filter(p => p.nombre.toLowerCase() !== name.toLowerCase());
-  localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(stored));
+  try {
+    const data = localStorage.getItem(PRODUCT_STORAGE_KEY);
+    let stored: MasterProduct[] = data ? JSON.parse(data) : [];
+    stored = stored.filter(p => p.nombre.toLowerCase() !== name.toLowerCase());
+    localStorage.setItem(PRODUCT_STORAGE_KEY, JSON.stringify(stored));
+  } catch (e) {}
 };
 
 export const findProductByName = (name: string): MasterProduct | undefined => {
-  return getProducts().find(p => p.nombre.toLowerCase() === name.toLowerCase());
+  const all = getProducts();
+  return all.find(p => p.nombre.toLowerCase() === name.toLowerCase());
 };
 
 // --- EXPORTS & BACKUP ---
@@ -192,8 +194,8 @@ export const restoreFromBackup = (jsonString: string): { success: boolean; messa
     if (data.categories) localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(data.categories));
     if (data.menus) localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(data.menus));
     if (data.profile) saveUserProfile(data.profile);
-    return { success: true, message: "Restauración completada." };
+    return { success: true, message: "Restauración completada con éxito." };
   } catch (e) {
-    return { success: false, message: "Archivo corrupto." };
+    return { success: false, message: "El archivo de copia de seguridad es inválido." };
   }
 };

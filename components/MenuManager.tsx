@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Recipe, Menu, Ingredient } from '../types';
 import { getRecipes, findProductByName, saveMenu, deleteMenu, generateId } from '../services/storage';
@@ -32,7 +31,8 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
       recipe.elaborations.forEach(elab => {
         elab.ingredients.forEach(ing => {
           const product = findProductByName(ing.name);
-          const category = product?.categoria || product?.unit || "Varios / Otros";
+          // Fix: Use 'unidad' instead of 'unit' as per MasterProduct interface defined in data/products.ts
+          const category = product?.categoria || product?.unidad || "Varios / Otros";
           const qty = (typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity as string)) * factor;
           
           if (!result[category]) result[category] = {};

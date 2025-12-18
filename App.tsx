@@ -27,17 +27,27 @@ export default function App() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
 
+  // Inicialización de datos
   useEffect(() => {
     refreshAll();
   }, []);
 
   const refreshAll = () => {
-    setRecipes(getRecipes());
-    setMenus(getMenus());
-    setUserProfile(getUserProfile());
-    setCategories(getCategories());
-    // Actualizamos el contador real de la base de datos
-    setDbProductCount(getProducts().length);
+    try {
+      const allRecipes = getRecipes();
+      const allMenus = getMenus();
+      const profile = getUserProfile();
+      const cats = getCategories();
+      const prods = getProducts();
+
+      setRecipes(allRecipes);
+      setMenus(allMenus);
+      setUserProfile(profile);
+      setCategories(cats);
+      setDbProductCount(prods.length);
+    } catch (err) {
+      console.error("Error al cargar datos:", err);
+    }
   };
 
   const handleCreateNew = () => {
@@ -179,6 +189,7 @@ export default function App() {
     r.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Vistas condicionales
   if (view === 'create' || view === 'edit') return (<div className="min-h-screen bg-slate-100 py-8 px-4"><RecipeForm initialRecipe={selectedRecipe} onSave={handleSaveForm} onCancel={() => setView('list')} /></div>);
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
   if (view === 'products') return (<ProductDatabase onBack={() => { setView('list'); refreshAll(); }} />);
@@ -258,7 +269,10 @@ export default function App() {
 
                {settingsTab === 'categories' && (
                  <div className="space-y-6">
-                    <form onSubmit={handleAddCategory} className="flex gap-2"><input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow p-3 border rounded-lg" placeholder="Nueva categoría..." /><button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button></form>
+                    <form onSubmit={handleAddCategory} className="flex gap-2">
+                        <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow p-3 border rounded-lg" placeholder="Nueva categoría..." />
+                        <button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button>
+                    </form>
                     <div className="space-y-2 border-t pt-4">
                        {categories.map(cat => (
                          <div key={cat} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg group">
