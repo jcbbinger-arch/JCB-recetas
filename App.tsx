@@ -32,12 +32,17 @@ export default function App() {
   }, []);
 
   const refreshAll = () => {
-    setRecipes(getRecipes());
-    setMenus(getMenus());
-    setUserProfile(getUserProfile());
-    setCategories(getCategories());
-    // Actualizamos el conteo real de la base de datos de productos
-    setDbProductCount(getProducts().length);
+    const loadedRecipes = getRecipes();
+    const loadedMenus = getMenus();
+    const loadedProfile = getUserProfile();
+    const loadedCategories = getCategories();
+    const loadedProducts = getProducts();
+
+    setRecipes(loadedRecipes);
+    setMenus(loadedMenus);
+    setUserProfile(loadedProfile);
+    setCategories(loadedCategories);
+    setDbProductCount(loadedProducts.length);
   };
 
   const handleCreateNew = () => {
@@ -197,7 +202,7 @@ export default function App() {
           <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
             <button onClick={() => setView('list')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'list' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutGrid size={20} />Dashboard</button>
             <button onClick={() => setView('menus')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'menus' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Layers size={20} />Menús y Eventos</button>
-            <button onClick={() => setView('products')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Database size={20} />Base de Datos</button>
+            <button onClick={() => setView('products')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'products' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Database size={20} />Base de Datos</button>
             <button onClick={() => setView('ai_scan')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'ai_scan' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-400 hover:bg-emerald-900/30'}`}><Sparkles size={20} />Scanner IA</button>
             <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Settings size={20} />Configuración</button>
           </nav>
@@ -214,7 +219,7 @@ export default function App() {
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Catálogo</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Catálogo</p><p className="text-2xl font-bold">{dbProductCount}</p></div></div>
           </div>
 
           {filteredRecipes.length === 0 ? (
@@ -259,7 +264,16 @@ export default function App() {
 
                {settingsTab === 'categories' && (
                  <div className="space-y-6">
-                    <form onSubmit={handleAddCategory} className="flex gap-2"><input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="flex-grow p-3 border rounded-lg" placeholder="Nueva categoría..." /><button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button></form>
+                    <form onSubmit={handleAddCategory} className="flex gap-2">
+                        <input 
+                            type="text" 
+                            value={newCategoryName} 
+                            onChange={(e) => setNewCategoryName(e.target.value)} 
+                            className="flex-grow p-3 border rounded-lg" 
+                            placeholder="Nueva categoría..." 
+                        />
+                        <button type="submit" className="bg-emerald-600 text-white px-4 rounded-lg font-bold">Añadir</button>
+                    </form>
                     <div className="space-y-2 border-t pt-4">
                        {categories.map(cat => (
                          <div key={cat} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg group">
