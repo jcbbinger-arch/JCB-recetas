@@ -1,19 +1,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, UserProfile, Menu } from './types';
-import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus } from './services/storage';
+import { getRecipes, saveRecipe, deleteRecipe, exportRecipeToJSON, createFullBackup, restoreFromBackup, getUserProfile, saveUserProfile, getCategories, saveCategory, deleteCategory, getMenus, getProducts, calculateRecipeCost, generateId } from './services/storage';
 import { RecipeForm } from './components/RecipeForm';
 import { RecipeDetail } from './components/RecipeDetail';
 import { ProductDatabase } from './components/ProductDatabase';
 import { MenuManager } from './components/MenuManager';
-import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, PieChart, User, Save, ImageIcon, Tag, BookOpen, Layers } from 'lucide-react';
+import { AIDigitalizer } from './components/AIDigitalizer';
+import { Plus, Search, Edit, Trash2, Download, ChefHat, FileJson, Database, Settings, Upload, LayoutGrid, UtensilsCrossed, User, ImageIcon, Tag, Layers, Sparkles, Euro } from 'lucide-react';
 
-type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus';
+type ViewState = 'list' | 'create' | 'edit' | 'detail' | 'products' | 'menus' | 'ai_import';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('list');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [dbProductCount, setDbProductCount] = useState(0);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -30,10 +32,21 @@ export default function App() {
   }, []);
 
   const refreshAll = () => {
-    setRecipes(getRecipes());
-    setMenus(getMenus());
-    setUserProfile(getUserProfile());
-    setCategories(getCategories());
+    try {
+      const allRecipes = getRecipes();
+      const allMenus = getMenus();
+      const profile = getUserProfile();
+      const cats = getCategories();
+      const prods = getProducts();
+
+      setRecipes(allRecipes);
+      setMenus(allMenus);
+      setUserProfile(profile);
+      setCategories(cats);
+      setDbProductCount(prods.length);
+    } catch (err) {
+      console.error("Error al cargar datos:", err);
+    }
   };
 
   const handleCreateNew = () => {
@@ -44,7 +57,7 @@ export default function App() {
       category: getCategories()[0] || 'General',
       sourceUrl: '',
       elaborations: [
-          { id: 'default_elab_' + Date.now(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
+          { id: 'elab_' + Date.now(), name: 'Elaboración Principal', ingredients: [], instructions: '', photos: [] }
       ],
       yieldQuantity: 4,
       yieldUnit: 'raciones',
@@ -58,6 +71,32 @@ export default function App() {
       }
     };
     setSelectedRecipe(recipeWithProfile as Recipe); 
+    setView('create');
+  };
+
+  const handleAIImportSuccess = (draft: Partial<Recipe>) => {
+    const profile = getUserProfile();
+    const recipeWithProfile: Recipe = {
+      ...draft,
+      id: generateId(),
+      author: draft.author || profile.authorName || '',
+      logo: draft.logo || profile.logo || '',
+      category: draft.category || 'General',
+      yieldQuantity: draft.yieldQuantity || 4,
+      yieldUnit: draft.yieldUnit || 'raciones',
+      elaborations: (draft.elaborations || []).map(e => ({ ...e, id: generateId(), photos: [] })),
+      processPhotos: [],
+      serviceDetails: {
+        presentation: '',
+        servingTemp: '',
+        cutlery: '',
+        passTime: '',
+        serviceType: 'A la Americana (Emplatado)',
+        clientDescription: '',
+        ...draft.serviceDetails
+      }
+    } as Recipe;
+    setSelectedRecipe(recipeWithProfile);
     setView('create');
   };
 
@@ -114,7 +153,7 @@ export default function App() {
   };
 
   const handleDeleteCategory = (cat: string) => {
-    if (window.confirm(`¿Eliminar categoría "${cat}"? Las recetas existentes no se verán afectadas.`)) {
+    if (window.confirm(`¿Eliminar categoría "${cat}"?`)) {
       deleteCategory(cat);
       setCategories(getCategories());
     }
@@ -140,21 +179,14 @@ export default function App() {
 
   const filteredRecipes = recipes.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    r.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.author && r.author.toLowerCase().includes(searchTerm.toLowerCase()))
+    r.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const totalIngredients = recipes.reduce((acc, r) => {
-    const ingredientsInRecipe = r.elaborations 
-      ? r.elaborations.reduce((eAcc, elab) => eAcc + elab.ingredients.length, 0)
-      : (r.ingredients?.length || 0);
-    return acc + ingredientsInRecipe;
-  }, 0);
 
   if (view === 'create' || view === 'edit') return (<div className="min-h-screen bg-slate-100 py-8 px-4"><RecipeForm initialRecipe={selectedRecipe} onSave={handleSaveForm} onCancel={() => setView('list')} /></div>);
   if (view === 'detail' && selectedRecipe) return (<div className="min-h-screen bg-slate-800 py-8 px-4 print:bg-white print:p-0"><RecipeDetail recipe={selectedRecipe} onBack={() => setView('list')} /></div>);
-  if (view === 'products') return (<ProductDatabase onBack={() => setView('list')} />);
+  if (view === 'products') return (<ProductDatabase onBack={() => { setView('list'); refreshAll(); }} />);
   if (view === 'menus') return (<MenuManager menus={menus} onBack={() => setView('list')} onRefresh={refreshAll} />);
+  if (view === 'ai_import') return (<AIDigitalizer onBack={() => setView('list')} onSuccess={handleAIImportSuccess} />);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
@@ -167,7 +199,8 @@ export default function App() {
           <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
             <button onClick={() => setView('list')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'list' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><LayoutGrid size={20} />Dashboard</button>
             <button onClick={() => setView('menus')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'menus' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Layers size={20} />Menús y Eventos</button>
-            <button onClick={() => setView('products')} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Database size={20} />Base de Datos</button>
+            <button onClick={() => setView('products')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'products' ? 'bg-slate-800/50 text-emerald-400 border border-slate-700/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Database size={20} />Base de Datos</button>
+            <button onClick={() => setView('ai_import')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${view === 'ai_import' ? 'bg-emerald-600 text-white shadow-lg' : 'text-emerald-400 hover:bg-emerald-900/30'}`}><Sparkles size={20} />Importador IA</button>
             <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition font-medium"><Settings size={20} />Configuración</button>
           </nav>
           <div className="p-4 border-t border-slate-800"><button onClick={handleCreateNew} className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"><Plus size={20} />Nueva Ficha</button></div>
@@ -175,30 +208,51 @@ export default function App() {
 
         <main className="flex-grow p-4 lg:p-8 overflow-y-auto bg-slate-50">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-            <div><h2 className="text-2xl font-bold text-slate-800">Mis Recetas</h2><p className="text-slate-500 text-sm">Gestiona y organiza tus fichas técnicas.</p></div>
-            <div className="relative w-full sm:w-96"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="text-slate-400" size={18} /></div><input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 border-0 rounded-xl bg-white shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-emerald-600 sm:text-sm" /></div>
+            <div><h2 className="text-2xl font-bold text-slate-800">Mis Recetas</h2><p className="text-slate-500 text-sm">Gestiona cientos de fichas técnicas.</p></div>
+            <div className="relative w-full sm:w-96"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="text-slate-400" size={18} /></div><input type="text" placeholder="Filtrar por nombre o categoría..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2.5 border-0 rounded-xl bg-white shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-emerald-600 sm:text-sm" /></div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><UtensilsCrossed size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Recetas</p><p className="text-2xl font-bold">{recipes.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Menús</p><p className="text-2xl font-bold">{menus.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-purple-50 text-purple-600 rounded-xl"><Tag size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Categorías</p><p className="text-2xl font-bold">{categories.length}</p></div></div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border flex items-center gap-4"><div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Database size={24} /></div><div><p className="text-sm text-slate-500 font-medium">Ingredientes</p><p className="text-2xl font-bold">{totalIngredients}</p></div></div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3"><div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><UtensilsCrossed size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Recetas</p><p className="text-lg font-bold">{recipes.length}</p></div></div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3"><div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Layers size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Menús</p><p className="text-lg font-bold">{menus.length}</p></div></div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3"><div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Tag size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Categorías</p><p className="text-lg font-bold">{categories.length}</p></div></div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-3 transition-all hover:border-emerald-500 cursor-pointer" onClick={() => setView('products')}><div className="p-2 bg-orange-50 text-orange-600 rounded-lg"><Database size={18} /></div><div><p className="text-[10px] text-slate-400 font-bold uppercase">Ingredientes</p><p className="text-lg font-bold">{dbProductCount}</p></div></div>
           </div>
 
           {filteredRecipes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-dashed border-2"><ChefHat size={48} className="text-slate-300" /><h3 className="text-xl font-bold mt-4">Sin resultados</h3></div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-              {filteredRecipes.map((recipe) => (
-                <div key={recipe.id} onClick={() => handleDetail(recipe)} className="group bg-white rounded-2xl shadow-sm border hover:shadow-xl transition duration-300 cursor-pointer flex flex-col h-full overflow-hidden">
-                  <div className="aspect-square relative bg-slate-100">{recipe.photo ? <img src={recipe.photo} className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full text-slate-300"><ChefHat size={48} /></div>}
-                    <div className="absolute top-3 left-3"><span className="bg-white/90 text-slate-800 text-xs font-bold px-3 py-1 rounded-full">{recipe.category}</span></div>
-                    <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => handleExport(e, recipe)} className="bg-white p-2 rounded-full hover:text-blue-600"><FileJson size={16} /></button><button onClick={(e) => handleEdit(e, recipe)} className="bg-white p-2 rounded-full hover:text-emerald-600"><Edit size={16} /></button><button onClick={(e) => handleDelete(e, recipe.id)} className="bg-white p-2 rounded-full hover:text-red-600"><Trash2 size={16} /></button></div>
+            /* Dashboard Grid Ultra-Compacto (hasta 8 columnas) */
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+              {filteredRecipes.map((recipe) => {
+                const costs = calculateRecipeCost(recipe);
+                return (
+                <div key={recipe.id} onClick={() => handleDetail(recipe)} className="group bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-emerald-300 transition-all duration-300 cursor-pointer flex flex-col h-full overflow-hidden relative">
+                  <div className="aspect-square relative bg-slate-50 overflow-hidden">
+                    {recipe.photo ? <img src={recipe.photo} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /> : <div className="flex items-center justify-center h-full text-slate-200"><ChefHat size={32} /></div>}
+                    <div className="absolute top-1.5 left-1.5"><span className="bg-white/95 text-slate-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter border border-slate-100 shadow-sm">{recipe.category}</span></div>
+                    {/* Cost Badge Compacto */}
+                    <div className="absolute top-1.5 right-1.5"><span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg flex items-center gap-0.5"><Euro size={8}/>{costs.perYield.toFixed(2)}</span></div>
+                    
+                    {/* Acciones en Hover */}
+                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                       <button onClick={(e) => handleExport(e, recipe)} title="Exportar JSON" className="bg-white p-1.5 rounded-lg hover:text-blue-600 text-slate-600 shadow-lg"><FileJson size={14} /></button>
+                       <button onClick={(e) => handleEdit(e, recipe)} title="Editar" className="bg-white p-1.5 rounded-lg hover:text-emerald-600 text-slate-600 shadow-lg"><Edit size={14} /></button>
+                       <button onClick={(e) => handleDelete(e, recipe.id)} title="Eliminar" className="bg-white p-1.5 rounded-lg hover:text-red-600 text-slate-600 shadow-lg"><Trash2 size={14} /></button>
+                    </div>
                   </div>
-                  <div className="p-5 flex-grow"><h3 className="text-lg font-bold group-hover:text-emerald-600">{recipe.name}</h3><p className="text-xs text-slate-400 mt-1">Por: {recipe.author}</p><div className="pt-4 mt-4 border-t flex justify-between text-xs text-slate-400 font-bold uppercase"><span>{recipe.yieldQuantity} {recipe.yieldUnit}</span><span>{recipe.elaborations.length} Elab.</span></div></div>
+                  <div className="p-2.5 flex-grow flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-[11px] font-black text-slate-800 leading-tight group-hover:text-emerald-600 line-clamp-2" title={recipe.name}>{recipe.name}</h3>
+                      <p className="text-[8px] text-slate-400 font-medium truncate mt-0.5">Por: {recipe.author}</p>
+                    </div>
+                    <div className="mt-2 pt-1.5 border-t border-slate-100 flex justify-between text-[8px] text-slate-400 font-black uppercase tracking-tighter">
+                      <span>{recipe.yieldQuantity} {recipe.yieldUnit.slice(0, 4)}</span>
+                      <span className="text-emerald-500">{recipe.elaborations.length} E.</span>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </main>

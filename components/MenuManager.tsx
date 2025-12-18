@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Recipe, Menu, Ingredient } from '../types';
-import { getRecipes, findProductByName, saveMenu, deleteMenu, generateId } from '../services/storage';
+import { getRecipes, findProductByName, saveMenu, deleteMenu, generateId, calculateRecipeCost } from '../services/storage';
 import { Plus, Trash2, ShoppingCart, Users, ChevronRight, ArrowLeft, Printer, FileText, LayoutList, Search, Utensils, Scale } from 'lucide-react';
 import { RecipeDetail } from './RecipeDetail';
 
@@ -19,7 +19,6 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
   
   const recipes = useMemo(() => getRecipes(), []);
 
-  // --- ORDER LOGIC ---
   const consolidatedOrder = useMemo(() => {
     if (!selectedMenu) return {};
     const result: Record<string, Record<string, { quantity: number; unit: string }>> = {};
@@ -32,7 +31,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
       recipe.elaborations.forEach(elab => {
         elab.ingredients.forEach(ing => {
           const product = findProductByName(ing.name);
-          const category = product?.categoria || product?.unit || "Varios / Otros";
+          const category = product?.categoria || product?.unidad || "Varios / Otros";
           const qty = (typeof ing.quantity === 'number' ? ing.quantity : parseFloat(ing.quantity as string)) * factor;
           
           if (!result[category]) result[category] = {};
@@ -71,8 +70,6 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
     onRefresh();
   };
 
-  const handlePrintOrder = () => window.print();
-
   if (viewMode === 'list') {
     return (
       <div className="p-6 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -80,14 +77,14 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
           <div>
             <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
               <LayoutList className="text-emerald-500" size={32} />
-              Gestión de Menús y Eventos
+              Menús y Eventos
             </h1>
-            <p className="text-slate-500">Agrupa recetas y genera pedidos consolidados por pax.</p>
+            <p className="text-slate-500">Agrupa fichas técnicas para producción masiva.</p>
           </div>
           <div className="flex gap-3">
             <button onClick={onBack} className="p-2 text-slate-400 hover:text-slate-600 transition"><ArrowLeft size={24} /></button>
             <button onClick={handleCreateMenu} className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-500 transition shadow-lg shadow-emerald-900/20">
-              <Plus size={20} /> Nuevo Menú
+              <Plus size={20} /> Crear Evento
             </button>
           </div>
         </header>
@@ -107,12 +104,6 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
               </div>
             </div>
           ))}
-          {menus.length === 0 && (
-            <div className="col-span-full py-20 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-slate-300">
-              <LayoutList size={48} className="mb-4" />
-              <p className="font-bold">No hay menús creados todavía</p>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -132,7 +123,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
           <div className="lg:col-span-2 space-y-8">
             <section className="bg-slate-900 text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
               <div className="relative z-10">
-                <label className="text-xs font-black text-emerald-400 uppercase tracking-widest block mb-2">Nombre del Evento / Menú</label>
+                <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block mb-2">Nombre del Evento</label>
                 <input 
                   type="text" 
                   value={selectedMenu.name} 
@@ -148,7 +139,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
                   <div className="bg-slate-800 px-6 py-3 rounded-2xl border border-slate-700 flex items-center gap-4">
                     <Users className="text-emerald-400" size={24} />
                     <div>
-                      <p className="text-[10px] text-slate-500 font-black uppercase">Comensales (PAX)</p>
+                      <p className="text-[10px] text-slate-500 font-black uppercase">PAX Totales</p>
                       <input 
                         type="number" 
                         value={pax} 
@@ -158,7 +149,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
                     </div>
                   </div>
                   <button onClick={() => setViewMode('order')} className="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-900/40">
-                    <ShoppingCart size={20} /> Generar Pedido
+                    <ShoppingCart size={20} /> Hoja de Pedido
                   </button>
                   <button onClick={() => setViewMode('cards')} className="bg-slate-700 hover:bg-slate-600 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition">
                     <Printer size={20} /> Libro de Fichas
@@ -168,54 +159,53 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
             </section>
 
             <section>
-              <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
-                <Utensils size={20} /> Platos del Menú ({menuRecipes.length})
+              <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter">
+                <Utensils size={20} /> PLATOS SELECCIONADOS ({menuRecipes.length})
               </h3>
               <div className="space-y-3">
                 {menuRecipes.map(r => (
                   <div key={r.id} className="bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between group hover:border-emerald-500 transition">
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
                         {r.photo ? <img src={r.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Utensils size={24}/></div>}
                       </div>
                       <div>
                         <h4 className="font-bold text-slate-800">{r.name}</h4>
-                        <p className="text-xs text-slate-400">{r.category} • rinde {r.yieldQuantity} {r.yieldUnit}</p>
+                        <p className="text-xs text-slate-400 font-medium">{r.category} • {calculateRecipeCost(r).perYield.toFixed(2)}€/pax</p>
                       </div>
                     </div>
-                    <button onClick={() => toggleRecipeInMenu(r.id)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={20}/></button>
+                    <button onClick={() => toggleRecipeInMenu(r.id)} className="text-slate-300 hover:text-red-500 p-2 transition-colors"><Trash2 size={20}/></button>
                   </div>
                 ))}
-                {menuRecipes.length === 0 && <p className="text-center py-10 text-slate-400 italic bg-slate-50 rounded-2xl border-2 border-dashed">No has añadido ningún plato al menú todavía.</p>}
               </div>
             </section>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl p-6 h-fit sticky top-6">
-            <h3 className="font-black text-slate-800 mb-4 uppercase tracking-tighter text-sm">Añadir Recetas</h3>
+            <h3 className="font-black text-slate-800 mb-4 uppercase tracking-tighter text-sm">Biblioteca de Recetas</h3>
             <div className="relative mb-4">
               <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
               <input 
                 type="text" 
-                placeholder="Buscar en mis fichas..." 
+                placeholder="Filtrar biblioteca..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               />
             </div>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {availableRecipes.map(r => (
                 <button 
                   key={r.id} 
                   onClick={() => toggleRecipeInMenu(r.id)}
-                  className="w-full text-left p-3 hover:bg-emerald-50 rounded-xl border border-transparent hover:border-emerald-100 flex items-center gap-3 transition group"
+                  className="w-full text-left p-2.5 hover:bg-emerald-50 rounded-xl border border-transparent hover:border-emerald-100 flex items-center gap-3 transition group"
                 >
                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
                     {r.photo ? <img src={r.photo} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Utensils size={16}/></div>}
                   </div>
                   <div className="overflow-hidden">
-                    <p className="font-bold text-slate-700 text-sm truncate">{r.name}</p>
-                    <p className="text-[10px] text-slate-400 uppercase">{r.category}</p>
+                    <p className="font-black text-slate-700 text-xs truncate leading-none mb-1">{r.name}</p>
+                    <p className="text-[9px] text-slate-400 uppercase font-black">{r.category}</p>
                   </div>
                   <Plus className="ml-auto text-emerald-500 opacity-0 group-hover:opacity-100 transition" size={18} />
                 </button>
@@ -229,45 +219,47 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
 
   if (viewMode === 'order' && selectedMenu) {
     return (
-      <div className="p-8 max-w-4xl mx-auto bg-white min-h-screen print:p-0">
+      <div className="p-8 max-w-5xl mx-auto bg-white min-h-screen print:p-1 print:max-w-none font-sans">
         <button onClick={() => setViewMode('detail')} className="no-print mb-8 flex items-center gap-2 text-slate-400 hover:text-slate-800 font-bold transition">
-          <ArrowLeft size={18} /> Volver al Menú
+          <ArrowLeft size={18} /> Volver al Evento
         </button>
 
-        <header className="border-b-4 border-slate-900 pb-6 mb-8 flex justify-between items-end">
+        <header className="border-b-2 border-slate-900 pb-3 mb-6 flex justify-between items-end print:mb-2 print:pb-1">
           <div>
-            <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Hoja de Pedido Consolidado</h1>
-            <p className="text-lg text-slate-500 font-medium">Menú: {selectedMenu.name} • Evento para <span className="text-emerald-600 font-black">{pax} PAX</span></p>
+            <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter print:text-[9pt]">PEDIDO CONSOLIDADO DE PRODUCCIÓN</h1>
+            <p className="text-lg text-slate-500 font-medium print:text-[7pt]">{selectedMenu.name} • <span className="text-emerald-600 font-black">{pax} PAX</span></p>
           </div>
-          <button onClick={handlePrintOrder} className="no-print bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-xl">
-            <Printer size={20} /> Imprimir Pedido
+          <button onClick={() => window.print()} className="no-print bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-xl hover:bg-slate-800 transition">
+            <Printer size={20} /> Imprimir Listado
           </button>
         </header>
 
-        <div className="space-y-10">
+        <div className="space-y-6 print:columns-2 print:gap-2 print:space-y-0">
           {Object.entries(consolidatedOrder).map(([category, items]) => (
-            <div key={category} className="break-inside-avoid">
-              <h2 className="text-xl font-black bg-slate-100 px-4 py-2 border-l-8 border-emerald-500 text-slate-800 uppercase tracking-widest mb-4">
+            <div key={category} className="break-inside-avoid mb-6 print:mb-1 border-b border-slate-50 print:pb-1">
+              <h2 className="text-xl font-black bg-slate-900 px-4 py-1.5 border-l-4 border-emerald-500 text-white uppercase tracking-widest mb-3 print:text-[7pt] print:px-1 print:py-0.5 print:mb-1 print:border-l-2">
                 {category}
               </h2>
-              <table className="w-full text-sm">
+              <table className="w-full text-sm print:text-[7pt]">
                 <thead>
-                  <tr className="border-b-2 border-slate-200 text-slate-400 uppercase text-[10px] font-black">
-                    <th className="text-left py-2 px-2">Producto / Referencia</th>
-                    <th className="text-right py-2 px-2">Cantidad Total</th>
-                    <th className="text-left py-2 px-2">Ud.</th>
-                    <th className="w-20"></th>
+                  <tr className="border-b border-slate-200 text-slate-400 uppercase text-[9px] font-black print:text-[5pt]">
+                    <th className="text-left py-2 px-1">PRODUCTO</th>
+                    <th className="text-right py-2 px-1">CANTIDAD</th>
+                    <th className="text-left py-2 px-1 pl-2">UD.</th>
+                    <th className="w-10 print:w-4"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {Object.entries(items).map(([name, data]) => (
-                    <tr key={name} className="hover:bg-slate-50">
-                      <td className="py-3 px-2 font-bold text-slate-700">{name}</td>
-                      <td className="py-3 px-2 text-right font-black text-lg text-emerald-700">
+                    <tr key={name} className="hover:bg-slate-50 border-b border-dotted border-slate-100">
+                      <td className="py-2 px-1 font-bold text-slate-800 print:py-0.5 print:px-0">{name}</td>
+                      <td className="py-2 px-1 text-right font-black text-emerald-700 print:py-0.5 print:px-0">
                         {parseFloat(data.quantity.toFixed(3))}
                       </td>
-                      <td className="py-3 px-2 text-slate-400 font-medium uppercase text-xs">{data.unit}</td>
-                      <td className="py-3 px-2"><div className="w-6 h-6 border-2 border-slate-200 rounded"></div></td>
+                      <td className="py-2 px-1 text-slate-400 font-black uppercase text-[10px] print:text-[6pt] print:py-0.5 pl-2">{data.unit}</td>
+                      <td className="py-2 px-1 print:py-0.5">
+                        <div className="w-4 h-4 border border-slate-200 rounded print:w-2 print:h-2"></div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -276,9 +268,9 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
           ))}
         </div>
 
-        <footer className="mt-20 border-t pt-8 text-xs text-slate-400 flex justify-between uppercase font-bold italic">
-          <span>KitchenManager Pro • Pedido Automático</span>
-          <span>Fecha: {new Date().toLocaleDateString()}</span>
+        <footer className="mt-10 border-t pt-4 text-[10px] text-slate-400 flex justify-between uppercase font-black italic print:text-[5pt] print:mt-1">
+          <span>Sincronización Automática KitchenManager Pro</span>
+          <span>Basado en producción para {pax} comensales</span>
         </footer>
       </div>
     );
@@ -288,26 +280,24 @@ export const MenuManager: React.FC<MenuManagerProps> = ({ menus, onBack, onRefre
     const menuRecipes = recipes.filter(r => selectedMenu.recipeIds.includes(r.id));
     return (
       <div className="bg-slate-800 py-10 print:bg-white print:p-0 min-h-screen">
-        <div className="max-w-[210mm] mx-auto space-y-20 print:space-y-0">
+        <div className="max-w-[210mm] mx-auto space-y-20 print:space-y-0" key={`pax-key-${pax}-${selectedMenu.id}`}>
           <button onClick={() => setViewMode('detail')} className="no-print mb-8 ml-10 flex items-center gap-2 text-white/50 hover:text-white font-bold transition">
             <ArrowLeft size={18} /> Volver al Menú
           </button>
           
-          <div className="no-print bg-emerald-600 text-white p-6 mx-10 rounded-2xl flex items-center justify-between shadow-2xl">
+          <div className="no-print bg-emerald-600 text-white p-6 mx-10 rounded-2xl flex items-center justify-between shadow-2xl animate-in slide-in-from-top-4">
             <div>
-              <h3 className="text-2xl font-black">Libro de Recetas del Menú</h3>
-              <p>Todas las fichas técnicas escaladas automáticamente para {pax} pax.</p>
+              <h3 className="text-2xl font-black uppercase tracking-tighter">Libro de Fichas del Evento</h3>
+              <p className="text-emerald-100 text-sm">Todas las recetas escaladas automáticamente a <span className="font-black text-white">{pax} PAX</span>.</p>
             </div>
-            <button onClick={() => window.print()} className="bg-white text-emerald-600 px-8 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
-              <Printer size={20} /> Imprimir Libro
+            <button onClick={() => window.print()} className="bg-white text-emerald-600 px-8 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 hover:scale-105 transition-transform">
+              <Printer size={20} /> Imprimir Libro Pro
             </button>
           </div>
 
-          {menuRecipes.map((recipe, idx) => (
-            <div key={recipe.id} className="print:break-after-page">
-               {/* Pasamos una versión de la receta escalada o simplemente dejamos que RecipeDetail haga su magia si le pasamos los pax deseados */}
-               {/* Como RecipeDetail ya tiene estado interno para pax, vamos a modificarlo para aceptar un initialDesiredYield opcional */}
-               <RecipeDetail recipe={recipe} onBack={() => {}} />
+          {menuRecipes.map((recipe) => (
+            <div key={`${recipe.id}-${pax}`} className="print:break-after-page">
+               <RecipeDetail recipe={recipe} onBack={() => {}} initialDesiredYield={pax} />
             </div>
           ))}
         </div>

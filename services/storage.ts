@@ -17,7 +17,48 @@ export const generateId = (): string => {
   return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
-// --- MENUS ---
+// --- CALCULATIONS ---
+
+export const calculateRecipeCost = (recipe: Recipe): { total: number; perYield: number } => {
+  let totalCost = 0;
+  
+  recipe.elaborations.forEach(elab => {
+    elab.ingredients.forEach(ing => {
+      const product = findProductByName(ing.name);
+      if (product && product.precio !== null) {
+        let qty = typeof ing.quantity === 'string' ? parseFloat(ing.quantity.replace(',', '.')) : (ing.quantity || 0);
+        if (isNaN(qty)) qty = 0;
+
+        // Conversión inteligente de unidades
+        let factor = 1;
+        const ingUnit = ing.unit.toLowerCase().trim();
+        const prodUnit = (product.unidad || '').toLowerCase().trim();
+
+        // Gramos a Kilos
+        if ((ingUnit === 'g' || ingUnit === 'gr' || ingUnit === 'gramos') && (prodUnit === 'kg' || prodUnit === 'kilo' || prodUnit === 'kilos')) {
+          factor = 0.001;
+        }
+        // Mililitros a Litros
+        if ((ingUnit === 'ml' || ingUnit === 'mililitros') && (prodUnit === 'l' || prodUnit === 'litro' || prodUnit === 'litros')) {
+          factor = 0.001;
+        }
+        // Centilitros a Litros
+        if ((ingUnit === 'cl' || ingUnit === 'centilitros') && (prodUnit === 'l' || prodUnit === 'litro' || prodUnit === 'litros')) {
+          factor = 0.01;
+        }
+
+        totalCost += qty * factor * product.precio;
+      }
+    });
+  });
+
+  const yieldQty = typeof recipe.yieldQuantity === 'string' ? parseFloat((recipe.yieldQuantity as string).replace(',', '.')) : (recipe.yieldQuantity || 1);
+  const perYield = !isNaN(yieldQty) && yieldQty > 0 ? totalCost / yieldQty : 0;
+  
+  return { total: totalCost, perYield };
+};
+
+// --- STORAGE METHODS (REST UNCHANGED) ---
 
 export const getMenus = (): Menu[] => {
   try {
@@ -40,8 +81,6 @@ export const deleteMenu = (id: string): void => {
   const menus = getMenus().filter(m => m.id !== id);
   localStorage.setItem(MENU_STORAGE_KEY, JSON.stringify(menus));
 };
-
-// --- CATEGORIES ---
 
 export const getCategories = (): string[] => {
   try {
@@ -72,8 +111,6 @@ export const deleteCategory = (category: string): void => {
   localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
 };
 
-// --- USER PROFILE ---
-
 export const getUserProfile = (): UserProfile => {
   try {
     const data = localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -87,31 +124,17 @@ export const saveUserProfile = (profile: UserProfile): void => {
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
 };
 
-// --- RECIPES ---
-
 export const getRecipes = (): Recipe[] => {
   try {
     const data = localStorage.getItem(RECIPE_STORAGE_KEY);
     if (!data || data === "undefined" || data === "null") return [];
-    
-    let rawRecipes: any;
-    try {
-      rawRecipes = JSON.parse(data);
-    } catch (e) {
-      return [];
-    }
-
+    const rawRecipes = JSON.parse(data);
     if (!Array.isArray(rawRecipes)) return [];
-    
-    return rawRecipes.map((r: any) => {
-      if (!r || typeof r !== 'object') return null;
-      let updatedRecipe = { ...r };
-      updatedRecipe.id = updatedRecipe.id || generateId();
-      if (!updatedRecipe.elaborations || updatedRecipe.elaborations.length === 0) {
-        updatedRecipe.elaborations = [{ id: generateId(), name: 'Elaboración Principal', ingredients: r.ingredients || [], instructions: r.instructions || '', photos: [] }];
-      }
-      return updatedRecipe;
-    }).filter(Boolean) as Recipe[];
+    return rawRecipes.map((r: any) => ({
+      ...r,
+      id: r.id || generateId(),
+      elaborations: r.elaborations || [{ id: generateId(), name: 'Elaboración Principal', ingredients: r.ingredients || [], instructions: r.instructions || '', photos: [] }]
+    }));
   } catch (error) {
     return [];
   }
@@ -129,8 +152,6 @@ export const deleteRecipe = (id: string): void => {
   const recipes = getRecipes().filter(r => r.id !== id);
   localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes));
 };
-
-// --- PRODUCTS ---
 
 export const getProducts = (): MasterProduct[] => {
   try {
@@ -165,21 +186,15 @@ export const findProductByName = (name: string): MasterProduct | undefined => {
   return getProducts().find(p => p.nombre.toLowerCase() === name.toLowerCase());
 };
 
-// --- BACKUP & EXPORT ---
-
-// Fix: Implementation of exportRecipeToJSON to resolve missing export error in App.tsx
 export const exportRecipeToJSON = (recipe: Recipe): void => {
   const dataStr = JSON.stringify(recipe, null, 2);
   const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-  const exportFileDefaultName = `receta_${recipe.name.replace(/\s+/g, '_') || 'sin_nombre'}.json`;
-
   const linkElement = document.createElement('a');
   linkElement.setAttribute('href', dataUri);
-  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.setAttribute('download', `receta_${recipe.name.replace(/\s+/g, '_')}.json`);
   linkElement.click();
 };
 
-// Fix: Implementation of createFullBackup to resolve missing export error in App.tsx
 export const createFullBackup = (): void => {
   const backup = {
     recipes: getRecipes(),
@@ -188,14 +203,11 @@ export const createFullBackup = (): void => {
     menus: getMenus(),
     profile: getUserProfile(),
   };
-
   const dataStr = JSON.stringify(backup, null, 2);
   const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-  const exportFileDefaultName = `backup_kitchen_manager_${new Date().toISOString().split('T')[0]}.json`;
-
   const linkElement = document.createElement('a');
   linkElement.setAttribute('href', dataUri);
-  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.setAttribute('download', `backup_kitchen_${new Date().toISOString().split('T')[0]}.json`);
   linkElement.click();
 };
 
