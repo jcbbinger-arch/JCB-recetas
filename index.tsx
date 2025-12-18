@@ -1,5 +1,5 @@
 
-import React, { ReactNode, ErrorInfo, Component } from 'react';
+import React, { ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -13,8 +13,8 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// Fix: Using the named 'Component' import ensures that generic parameters are correctly mapped to 'this.props' and 'this.state' within the class scope.
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+// Fix: Using React.Component explicitly avoids potential naming conflicts with global types and ensures props and state are correctly mapped via generics.
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   // Fix: Initializing state as a class field with explicit typing.
   public state: ErrorBoundaryState = { 
     hasError: false, 
@@ -48,7 +48,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         </div>
       );
     }
-    // Fix: Accessing children via this.props is now properly typed by inheriting from the generic Component class.
+    // Fix: Accessing children via this.props is now properly typed by inheriting from the generic React.Component class.
     return this.props.children;
   }
 }

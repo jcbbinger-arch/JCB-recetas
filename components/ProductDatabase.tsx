@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MasterProduct } from '../data/products';
 import { getProducts, saveProduct, deleteProduct } from '../services/storage';
-import { Search, Plus, Trash2, ArrowLeft, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, ArrowLeft, ArrowUpDown, ChevronUp, ChevronDown, CheckCircle2 } from 'lucide-react';
 
 interface ProductDatabaseProps {
   onBack: () => void;
@@ -14,12 +14,14 @@ type SortOrder = 'asc' | 'desc';
 export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
   const [products, setProducts] = useState<MasterProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [sortField, setSortField] = useState<SortField>('nombre');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   
-  // New Product Form State
-  const [newProd, setNewProd] = useState<MasterProduct & { precioStr: string }>({
+  // Form State
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalName, setOriginalName] = useState('');
+  const [formProd, setFormProd] = useState<MasterProduct & { precioStr: string }>({
     nombre: '',
     unidad: 'Kg',
     precio: null,
@@ -76,10 +78,6 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     return result;
   }, [products, searchTerm, sortField, sortOrder]);
 
-  const handleDecimalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Tecla punto tratada como coma si se desea o viceversa
-  };
-
   const parseDecimal = (val: string): number => {
     if (!val) return 0;
     const sanitized = val.replace(',', '.');
@@ -87,25 +85,47 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
     return isNaN(parsed) ? 0 : parsed;
   };
 
+  const openAddForm = () => {
+    setIsEditing(false);
+    setOriginalName('');
+    setFormProd({ nombre: '', unidad: 'Kg', precio: null, precioStr: '', alérgenos: [] });
+    setShowForm(true);
+  };
+
+  const openEditForm = (product: MasterProduct) => {
+    setIsEditing(true);
+    setOriginalName(product.nombre);
+    setFormProd({
+      ...product,
+      precioStr: product.precio !== null ? product.precio.toString().replace('.', ',') : '',
+      alérgenos: [...product.alérgenos]
+    });
+    setShowForm(true);
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProd.nombre) return;
+    if (!formProd.nombre) return;
     
+    // Si estamos editando y el nombre cambió, eliminamos el registro antiguo
+    if (isEditing && originalName !== formProd.nombre) {
+      deleteProduct(originalName);
+    }
+
     const finalProduct: MasterProduct = {
-      nombre: newProd.nombre,
-      unidad: newProd.unidad,
-      precio: newProd.precioStr ? parseDecimal(newProd.precioStr) : null,
-      alérgenos: newProd.alérgenos
+      nombre: formProd.nombre,
+      unidad: formProd.unidad,
+      precio: formProd.precioStr ? parseDecimal(formProd.precioStr) : null,
+      alérgenos: formProd.alérgenos
     };
 
     saveProduct(finalProduct);
     loadProducts();
-    setShowAddForm(false);
-    setNewProd({ nombre: '', unidad: 'Kg', precio: null, precioStr: '', alérgenos: [] });
+    setShowForm(false);
   };
 
   const toggleAllergen = (allergen: string) => {
-    setNewProd(prev => {
+    setFormProd(prev => {
       const exists = prev.alérgenos.includes(allergen);
       return {
         ...prev,
@@ -131,7 +151,7 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans animate-in fade-in duration-300">
       {/* Header */}
-      <header className="bg-slate-800 text-white sticky top-0 z-20 shadow-md">
+      <header className="bg-slate-900 text-white sticky top-0 z-20 shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <button onClick={onBack} className="p-2 hover:bg-slate-700 rounded-full transition">
@@ -145,7 +165,7 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
             </div>
           </div>
           <button 
-            onClick={() => setShowAddForm(true)}
+            onClick={openAddForm}
             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition"
           >
             <Plus size={20} /> Nuevo Producto
@@ -199,7 +219,7 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                     <div className="flex items-center gap-2">Unidad <SortIcon field="unidad" /></div>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-widest">Alérgenos</th>
-                  <th className="px-6 py-4 text-right"></th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
@@ -227,9 +247,22 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button onClick={() => handleDelete(product.nombre)} className="text-gray-300 hover:text-red-600 transition p-2 hover:bg-red-50 rounded-full">
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => openEditForm(product)} 
+                          className="text-gray-400 hover:text-blue-600 transition p-2 hover:bg-blue-50 rounded-full"
+                          title="Editar producto"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(product.nombre)} 
+                          className="text-gray-300 hover:text-red-600 transition p-2 hover:bg-red-50 rounded-full"
+                          title="Eliminar producto"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -246,16 +279,18 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
         </div>
       </main>
 
-      {/* Add Product Modal */}
-      {showAddForm && (
+      {/* Add/Edit Product Modal */}
+      {showForm && (
         <div className="fixed inset-0 bg-slate-900/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
-            <div className="bg-slate-800 text-white p-6 flex justify-between items-center">
+            <div className={`text-white p-6 flex justify-between items-center ${isEditing ? 'bg-blue-700' : 'bg-slate-800'}`}>
               <div>
-                <h3 className="text-lg font-bold">Añadir Nuevo Producto</h3>
-                <p className="text-xs text-slate-400">Introduce los datos del proveedor</p>
+                <h3 className="text-lg font-bold">{isEditing ? 'Editar Producto' : 'Añadir Nuevo Producto'}</h3>
+                <p className="text-xs text-white/60">
+                  {isEditing ? `Modificando ${originalName}` : 'Introduce los datos del proveedor'}
+                </p>
               </div>
-              <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-white transition">✕</button>
+              <button onClick={() => setShowForm(false)} className="text-white/60 hover:text-white transition">✕</button>
             </div>
             <form onSubmit={handleSave} className="p-8 space-y-6">
               <div>
@@ -264,8 +299,8 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                   required
                   autoFocus
                   className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
-                  value={newProd.nombre}
-                  onChange={e => setNewProd({...newProd, nombre: e.target.value})}
+                  value={formProd.nombre}
+                  onChange={e => setFormProd({...formProd, nombre: e.target.value})}
                   placeholder="Ej: Harina de Trigo Tradicional"
                 />
               </div>
@@ -276,9 +311,8 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                     type="text"
                     inputMode="decimal"
                     className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
-                    value={newProd.precioStr}
-                    onKeyDown={handleDecimalKeyDown}
-                    onChange={e => setNewProd({...newProd, precioStr: e.target.value})}
+                    value={formProd.precioStr}
+                    onChange={e => setFormProd({...formProd, precioStr: e.target.value})}
                     placeholder="0,00"
                   />
                 </div>
@@ -287,8 +321,8 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                   <input 
                     required
                     className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm"
-                    value={newProd.unidad}
-                    onChange={e => setNewProd({...newProd, unidad: e.target.value})}
+                    value={formProd.unidad}
+                    onChange={e => setFormProd({...formProd, unidad: e.target.value})}
                     placeholder="Kg, L, Ud..."
                   />
                 </div>
@@ -301,7 +335,7 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
                     <label key={allergen} className="flex items-center gap-2 text-[11px] font-bold uppercase cursor-pointer hover:bg-white p-2 rounded-lg transition-colors border border-transparent hover:border-gray-200">
                       <input 
                         type="checkbox"
-                        checked={newProd.alérgenos.includes(allergen)}
+                        checked={formProd.alérgenos.includes(allergen)}
                         onChange={() => toggleAllergen(allergen)}
                         className="rounded text-emerald-600 focus:ring-emerald-500"
                       />
@@ -312,11 +346,17 @@ export const ProductDatabase: React.FC<ProductDatabaseProps> = ({ onBack }) => {
               </div>
 
               <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowAddForm(false)} className="px-6 py-3 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition">
+                <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition">
                   Cancelar
                 </button>
-                <button type="submit" className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 transition">
-                  Guardar Referencia
+                <button 
+                  type="submit" 
+                  className={`px-6 py-3 text-white rounded-xl font-bold shadow-lg transition flex items-center gap-2 ${
+                    isEditing ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
+                  }`}
+                >
+                  <CheckCircle2 size={18} />
+                  {isEditing ? 'Actualizar Referencia' : 'Guardar Referencia'}
                 </button>
               </div>
             </form>
