@@ -1,5 +1,5 @@
 
-import React, { ReactNode, ErrorInfo } from 'react';
+import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
@@ -13,9 +13,11 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-// Fix: Using React.Component explicitly helps TypeScript correctly resolve the inherited properties like 'this.props' and 'this.state' which can sometimes be ambiguous when using destructured imports in certain environments.
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  // Fix: Adding an explicit constructor that calls super(props) ensures the base React.Component is correctly initialized with the generic types, making 'this.props' available.
+// Fix: Explicitly importing and extending Component from 'react' with defined generic interfaces 
+// ensures that TypeScript correctly identifies 'this.props' and 'this.state' as members of the class.
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Fix: Explicit constructor with super(props) ensures the base class is properly initialized 
+  // with the provided props and state generic types.
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { 
@@ -33,7 +35,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   render(): ReactNode {
-    // Check if the application state has an error
+    // Fix: Accessing 'this.state' now correctly resolves through the inherited Component class.
     if (this.state.hasError) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4 font-sans text-center">
@@ -51,7 +53,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    // Fix: With the explicit inheritance from React.Component and the constructor, this.props is now correctly recognized by the TypeScript compiler.
+    // Fix: Accessing 'this.props' now correctly resolves through the inherited Component class.
     return this.props.children;
   }
 }
